@@ -1,0 +1,64 @@
+<!--
+  Página de bienvenida de Aula Personal.
+  Se muestra al iniciar la aplicación antes de navegar a cualquier sección.
+-->
+<div class="h-full flex flex-col items-center justify-center gap-10 p-8">
+  <!-- Logo y título principal -->
+  <div class="text-center">
+    <img src="./assets/imagenes/mobile_profile.svg" alt="Aula Personal" class="w-20 h-24 mx-auto mb-4 opacity-80">
+    <h1 class="text-3xl font-bold text-gray-800">Aula Personal</h1>
+    <p class="text-gray-400 mt-1">Selecciona una herramienta para empezar</p>
+  </div>
+
+  <!-- Grid de tarjetas de herramientas -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 w-full max-w-3xl">
+
+    <!-- App Blocker -->
+    <a href="#" onclick="cargarPagina(event, 'appblocker')" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md hover:border-blue-200 transition-all duration-200 group">
+      <div class="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-red-100 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-500"><path d="M3 12v.01" /><path d="M7.5 19.8v.01" /><path d="M4.2 16.5v.01" /><path d="M4.2 7.5v.01" /><path d="M12 21a8.994 8.994 0 0 0 6.362 -2.634m1.685 -2.336a9 9 0 0 0 -8.047 -13.03" /><path d="M3 3l18 18" /></svg>
+      </div>
+      <h2 class="text-lg font-semibold text-gray-800 mb-1">App Blocker</h2>
+      <p class="text-sm text-gray-400 leading-relaxed">Bloquea aplicaciones distractoras durante tus sesiones de estudio para mantener el enfoque.</p>
+    </a>
+
+    <!-- Pomodoro -->
+    <a href="#" onclick="cargarPagina(event, 'pomodoro')" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md hover:border-blue-200 transition-all duration-200 group">
+      <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M5 13a7 7 0 1 0 14 0a7 7 0 0 0 -14 0" /><path d="M14.5 10.5l-2.5 2.5" /><path d="M17 8l1 -1" /><path d="M14 3h-4" /></svg>
+      </div>
+      <h2 class="text-lg font-semibold text-gray-800 mb-1">Pomodoro</h2>
+      <p class="text-sm text-gray-400 leading-relaxed">Configura sesiones de estudio con descansos programados y temporizador automático.</p>
+    </a>
+
+    <!-- AI Chat -->
+    <a href="#" onclick="cargarPagina(event, 'aichat')" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md hover:border-blue-200 transition-all duration-200 group">
+      <div class="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-green-100 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-500"><path d="M6 6a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -4" /><path d="M12 2v2" /><path d="M9 12v9" /><path d="M15 12v9" /><path d="M5 16l4 -2" /><path d="M15 14l4 2" /><path d="M9 18h6" /><path d="M10 8v.01" /><path d="M14 8v.01" /></svg>
+      </div>
+      <h2 class="text-lg font-semibold text-gray-800 mb-1">AI Chat</h2>
+      <p class="text-sm text-gray-400 leading-relaxed">Asistente virtual con inteligencia artificial para resolver dudas y ayudarte en tus tareas.</p>
+    </a>
+
+    <!-- Music -->
+    <a href="#" onclick="alertas('info', 'Próximamente disponible')" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md hover:border-blue-200 transition-all duration-200 group opacity-60 cursor-not-allowed">
+      <div class="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple-500"><path d="M16 3.937a9 9 0 1 0 5 8.063" /><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M19 4a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M20 4l-3.5 10l-2.5 2" /></svg>
+      </div>
+      <h2 class="text-lg font-semibold text-gray-800 mb-1">Music</h2>
+      <p class="text-sm text-gray-400 leading-relaxed">Reproduce música de fondo para concentrarte durante tus sesiones de estudio.</p>
+      <span class="inline-block mt-2 text-xs text-purple-400 font-medium">Próximamente</span>
+    </a>
+
+    <!-- Notes -->
+    <a href="#" onclick="alertas('info', 'Próximamente disponible')" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md hover:border-blue-200 transition-all duration-200 group opacity-60 cursor-not-allowed">
+      <div class="w-12 h-12 bg-yellow-50 rounded-xl flex items-center justify-center mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yellow-500"><path d="M5 5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -14" /><path d="M9 7l6 0" /><path d="M9 11l6 0" /><path d="M9 15l4 0" /></svg>
+      </div>
+      <h2 class="text-lg font-semibold text-gray-800 mb-1">Notes</h2>
+      <p class="text-sm text-gray-400 leading-relaxed">Toma notas rápidas y organiza tus apuntes de estudio en un solo lugar.</p>
+      <span class="inline-block mt-2 text-xs text-purple-400 font-medium">Próximamente</span>
+    </a>
+
+  </div>
+</div>

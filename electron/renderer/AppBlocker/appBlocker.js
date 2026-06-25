@@ -2,6 +2,60 @@ let apps = [];
 let bloqueadas = [];
 let finBloqueo = null;
 
+// ========================================================================
+//  SELECCIÓN DE APPS PARA POMODORO
+//  Persiste en localStorage qué apps tiene el usuario marcadas para que
+//  el Pomodoro las bloquee automáticamente al iniciar una sesión.
+// ========================================================================
+
+/**
+ * Lee de localStorage las apps marcadas por el usuario para bloquear
+ * desde el Pomodoro. Devuelve un array de nombres de proceso.
+ * @returns {string[]}
+ */
+function obtenerSeleccionadas() {
+  return JSON.parse(localStorage.getItem('pomodoro-apps-seleccionadas') || '[]');
+}
+
+/**
+ * Guarda en localStorage la lista de procesos seleccionados.
+ * @param {string[]} seleccionadas - Array de nombres de proceso
+ */
+function guardarSeleccionadas(seleccionadas) {
+  localStorage.setItem('pomodoro-apps-seleccionadas', JSON.stringify(seleccionadas));
+}
+
+/**
+ * Sincroniza el array de seleccionadas con el estado actual de los checkboxes
+ * (solo de las apps que NO están ya bloqueadas).
+ */
+function sincronizarSeleccionadas() {
+  const seleccionadas = [];
+  document.querySelectorAll('#lista-apps input[type="checkbox"]').forEach(cb => {
+    const div = cb.closest('div');
+    if (cb.checked && !cb.disabled) {
+      const app = apps.find(a => a.nombre === div.dataset.nombre);
+      if (app) seleccionadas.push(app.proceso.replace(/\.exe$/i, ''));
+    }
+  });
+  guardarSeleccionadas(seleccionadas);
+}
+
+/**
+ * Restaura el estado de los checkboxes a partir de lo guardado en localStorage.
+ * Se llama después de renderizar la lista.
+ */
+function restaurarSeleccionadas() {
+  const seleccionadas = obtenerSeleccionadas();
+  document.querySelectorAll('#lista-apps input[type="checkbox"]').forEach(cb => {
+    const div = cb.closest('div');
+    const app = apps.find(a => a.nombre === div.dataset.nombre);
+    if (app && !cb.disabled) {
+      cb.checked = seleccionadas.includes(app.proceso.replace(/\.exe$/i, ''));
+    }
+  });
+}
+
 function obtenerApps() {
     return JSON.parse(localStorage.getItem('apps-bloqueo') || '[]');
 }
@@ -128,14 +182,22 @@ function renderizarApps(lista) {
         });
         div.appendChild(btnEliminar);
 
+        // Evento para marcar/desmarcar al hacer clic en la tarjeta
         div.addEventListener('click', (e) => {
             if (e.target !== checkbox && e.target !== btnEliminar && !bloqueada) {
                 checkbox.checked = !checkbox.checked;
+                sincronizarSeleccionadas();
             }
         });
 
+        // Persistir selección cuando el usuario cambia el checkbox directamente
+        checkbox.addEventListener('change', sincronizarSeleccionadas);
+
         contenedor.appendChild(div);
     }
+
+    // Una vez renderizada, restaurar las selecciones guardadas
+    restaurarSeleccionadas();
 }
 
 async function iniciarBloqueo() {
@@ -159,6 +221,8 @@ async function iniciarBloqueo() {
     finBloqueo = Date.now() + minutos * 60 * 1000;
     mostrarEstadoBloqueo();
     actualizarTiempoRestante();
+    // Limpiar selección de pomodoro porque las apps ya están bloqueadas
+    guardarSeleccionadas([]);
     renderizarApps(apps.filter(a => a.nombre.toLowerCase().includes(document.getElementById('input-buscar').value.toLowerCase())));
 }
 
@@ -197,5 +261,6 @@ async function desbloquearTodo() {
     finBloqueo = null;
     document.getElementById('estado-bloqueo').classList.add('hidden');
     document.getElementById('btn-bloquear').disabled = false;
+    guardarSeleccionadas([]);
     renderizarApps(apps.filter(a => a.nombre.toLowerCase().includes(document.getElementById('input-buscar').value.toLowerCase())));
 }

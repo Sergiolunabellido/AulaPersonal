@@ -1,8 +1,9 @@
 function cargarPagina(e, pagina) {
-    e.preventDefault();
+    if (e) e.preventDefault();
     const divApp = document.getElementById('app');
 
     const rutas = {
+        welcome: 'welcome/welcome.html',
         appblocker: 'AppBlocker/appBlocker.html',
         pomodoro: 'Pomodoro/pomodoro.html',
         aichat: 'chatAI/chat.html',
@@ -30,6 +31,9 @@ function cargarPagina(e, pagina) {
             });
         });
 }
+
+// Cargar la página de bienvenida al iniciar la aplicación
+document.addEventListener('DOMContentLoaded', () => cargarPagina(null, 'welcome'));
 
 function alertas(tipo, mensaje) {
     const overlay = document.getElementById('modal-overlay');
