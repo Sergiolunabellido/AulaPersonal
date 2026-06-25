@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+    <head><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Aula Personal - Electron</title>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['Poppins', 'sans-serif'] } } } }</script>
+        <script src="./index.js"></script>
+    </head>
+    <body>
+        <div id="" class="flex flex-col lg:flex-row">
+            <div id="barraLateral" class="flex flex-col justify-between p-4 lg:min-h-screen w-full lg:w-64 border-b lg:border-b-0 lg:border-r border-gray-300 bg-gray-50 ">
+                <div id="header-sidebar" class="flex flex-col lg:flex-col gap-4 lg:gap-10">
+                    <div id="titulo" class="flex gap-3 flex-wrap w-full items-center justify-center lg:justify-center ">
+                        <div id="iconoMovil">
+                            <img src="./assets/imagenes/mobile_profile.svg" alt="" class="w-10 h-14 ">
+                        </div>
+                        <div id="texto" class="flex flex-col">
+                            <h1 class="font-bold text-xl">Aula Personal</h1>
+                            <p class="text-sm lg:text-base">Productivity Suite</p>
+                        </div>
+                    </div>
+
+                    <div id="paginas" class="w-full flex flex-col gap-2 justify-center ">
+
+                        <ul id="barraLateralMenu" class="flex flex-row lg:flex-col gap-4 lg:gap-8 items-center lg:items-start justify-center lg:ms-5">
+                            <li><a href="#" id="appblocker" class="flex gap-3 items-center text-sm lg:text-base" onclick="cargarPagina(event, 'appblocker')">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-time-duration-off w-5 h-5 lg:w-6 lg:h-6"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M3 12v.01" /><path d="M7.5 19.8v.01" /><path d="M4.2 16.5v.01" /><path d="M4.2 7.5v.01" /><path d="M12 21a8.994 8.994 0 0 0 6.362 -2.634m1.685 -2.336a9 9 0 0 0 -8.047 -13.03" /><path d="M3 3l18 18" /></svg>
+                                <span class="hidden lg:inline">App Blocker</span></a>
+                            </li>
+                            <li><a href="#" id="pomodoro" class="flex gap-3 items-center text-sm lg:text-base" onclick="cargarPagina(event, 'pomodoro')">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-stopwatch w-5 h-5 lg:w-6 lg:h-6"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M5 13a7 7 0 1 0 14 0a7 7 0 0 0 -14 0" /><path d="M14.5 10.5l-2.5 2.5" /><path d="M17 8l1 -1" /><path d="M14 3h-4" /></svg>
+                                <span class="hidden lg:inline">Pomodoro</span></a>
+                            </li>
+                            <li><a href="#" id="chat" class="flex gap-3 items-center text-sm lg:text-base" onclick="cargarPagina(event, 'aichat')">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-robot w-5 h-5 lg:w-6 lg:h-6"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M6 6a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -4" /><path d="M12 2v2" /><path d="M9 12v9" /><path d="M15 12v9" /><path d="M5 16l4 -2" /><path d="M15 14l4 2" /><path d="M9 18h6" /><path d="M10 8v.01" /><path d="M14 8v.01" /></svg>
+                                <span class="hidden lg:inline">AI Chat</span></a>
+                            </li>
+                            <li><a href="#" id="musica" class="flex gap-3 items-center text-sm lg:text-base">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-vinyl w-5 h-5 lg:w-6 lg:h-6"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M16 3.937a9 9 0 1 0 5 8.063" /><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M19 4a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M20 4l-3.5 10l-2.5 2" /></svg>
+                                <span class="hidden lg:inline">Music</span></a>
+                            </li>
+                            <li><a href="#" id="notes" class="flex gap-3 items-center text-sm lg:text-base">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-notes w-5 h-5 lg:w-6 lg:h-6"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M5 5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -14" /><path d="M9 7l6 0" /><path d="M9 11l6 0" /><path d="M9 15l4 0" /></svg>
+                                <span class="hidden lg:inline">Notes</span></a>
+                            </li>
+                        </ul>
+
+                    </div>
+                </div>
+
+                <div id="footer-sidebar" class="hidden lg:block">
+                    <div id="boton" class="flex items-center justify-center bg-blue-800 rounded-md text-white px-4 py-2 hover:bg-blue-500 transition-colors duration-300">
+                        <button onclick="alertas('warning', 'In this moment this function is not available')">Start Focus Session</button>
+                    </div>
+                    <hr class="my-4 border-gray-300">
+                    <div>
+                        <ul id="help-sidebar" class="flex flex-col gap-8 items-start ms-5 mb-3">
+                            <li><a href="#" class="flex gap-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-settings"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065" /><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /></svg>
+                                Settings</a>
+                            </li>
+                            <li><a href="#" class="flex gap-3" onclick="alertas('warning', 'In this moment this function is not available')">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-help"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 17l0 .01" /><path d="M12 13.5a1.5 1.5 0 0 1 1 -1.5a2.6 2.6 0 1 0 -3 -4" /></svg>
+                                Help</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="app" class="flex-1 p-4">
+                <!--Contenido de las secciones de la aplicación.-->
+            </div>
+        </div>
+    <!-- Modal de alertas -->
+    <div id="modal-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50" onclick="if(event.target===this)cerrarModal()">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4">
+            <div class="flex flex-col items-center gap-4">
+                <span id="modal-icono" class="text-4xl"></span>
+                <p id="modal-mensaje" class="text-center text-gray-700"></p>
+                <button id="modal-boton" onclick="cerrarModal()">Aceptar</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
