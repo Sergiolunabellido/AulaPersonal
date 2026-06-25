@@ -77,7 +77,7 @@
   function loadState() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_CONFIG_KEY));
-      if (saved && saved.sessionMinutes && saved.sessionCount && saved.breakMinutes) {
+      if (saved && saved.sessionMinutes != null && saved.sessionCount != null && saved.breakMinutes != null) {
         return saved;
       }
     } catch { /* ignorar datos corruptos */ }

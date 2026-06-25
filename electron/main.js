@@ -1,6 +1,6 @@
 const {app, BrowserWindow, ipcMain} = require('electron');
 const path = require('path');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 
 let intervaloBloqueo = null;
 
@@ -45,7 +45,7 @@ ipcMain.handle('bloquear-apps', (_event, nombresApps, minutos) => {
         }
 
         for (const nombre of nombresApps) {
-            exec(`taskkill /F /IM "${nombre}.exe" /T 2>nul`, () => {});
+            execFile('taskkill', ['/F', '/IM', `${nombre}.exe`, '/T'], { windowsHide: true }, () => {});
         }
     }, 2000);
 

@@ -1,6 +1,7 @@
 let apps = [];
 let bloqueadas = [];
 let finBloqueo = null;
+let timeoutId = null;
 
 // ========================================================================
 //  SELECCIÓN DE APPS PARA POMODORO
@@ -54,6 +55,29 @@ function restaurarSeleccionadas() {
       cb.checked = seleccionadas.includes(app.proceso.replace(/\.exe$/i, ''));
     }
   });
+}
+
+function guardarEstadoBloqueo() {
+  sessionStorage.setItem('appblocker-bloqueo', JSON.stringify({
+    bloqueadas,
+    finBloqueo,
+  }));
+}
+
+function restaurarEstadoBloqueo() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('appblocker-bloqueo'));
+    if (saved && saved.finBloqueo && Date.now() < saved.finBloqueo) {
+      bloqueadas = saved.bloqueadas || [];
+      finBloqueo = saved.finBloqueo;
+      mostrarEstadoBloqueo();
+      actualizarTiempoRestante();
+      return true;
+    } else if (saved) {
+      sessionStorage.removeItem('appblocker-bloqueo');
+    }
+  } catch { /* ignorar */ }
+  return false;
 }
 
 function obtenerApps() {
@@ -125,6 +149,12 @@ function eliminarApp(id) {
 
     document.getElementById('btn-bloquear').addEventListener('click', iniciarBloqueo);
     document.getElementById('btn-desbloquear').addEventListener('click', desbloquearTodo);
+
+    window.addEventListener('beforeunload', () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    });
+
+    restaurarEstadoBloqueo();
 })();
 
 function renderizarApps(lista) {
@@ -201,6 +231,10 @@ function renderizarApps(lista) {
 }
 
 async function iniciarBloqueo() {
+    if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+    }
     const seleccionadas = [];
     document.querySelectorAll('#lista-apps input[type="checkbox"]:checked').forEach(cb => {
         const nombre = cb.closest('div').dataset.nombre;
@@ -219,6 +253,7 @@ async function iniciarBloqueo() {
     await window.electronAPI.bloquearApps(seleccionadas.map(a => a.proceso.replace(/\.exe$/i, '')), minutos);
 
     finBloqueo = Date.now() + minutos * 60 * 1000;
+    guardarEstadoBloqueo();
     mostrarEstadoBloqueo();
     actualizarTiempoRestante();
     // Limpiar selección de pomodoro porque las apps ya están bloqueadas
@@ -236,6 +271,11 @@ function mostrarEstadoBloqueo() {
 function actualizarTiempoRestante() {
     if (!finBloqueo) return;
 
+    if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+    }
+
     const ahora = Date.now();
     const restante = Math.max(0, Math.floor((finBloqueo - ahora) / 1000));
 
@@ -244,6 +284,7 @@ function actualizarTiempoRestante() {
         document.getElementById('btn-bloquear').disabled = false;
         bloqueadas = [];
         finBloqueo = null;
+        sessionStorage.removeItem('appblocker-bloqueo');
         renderizarApps(apps.filter(a => a.nombre.toLowerCase().includes(document.getElementById('input-buscar').value.toLowerCase())));
         return;
     }
@@ -252,13 +293,18 @@ function actualizarTiempoRestante() {
     const segs = restante % 60;
     document.getElementById('tiempo-restante').textContent = `${String(mins).padStart(2, '0')}:${String(segs).padStart(2, '0')}`;
 
-    setTimeout(actualizarTiempoRestante, 1000);
+    timeoutId = setTimeout(actualizarTiempoRestante, 1000);
 }
 
 async function desbloquearTodo() {
+    if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+    }
     await window.electronAPI.desbloquearTodo();
     bloqueadas = [];
     finBloqueo = null;
+    sessionStorage.removeItem('appblocker-bloqueo');
     document.getElementById('estado-bloqueo').classList.add('hidden');
     document.getElementById('btn-bloquear').disabled = false;
     guardarSeleccionadas([]);

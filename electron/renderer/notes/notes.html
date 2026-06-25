@@ -1,0 +1,40 @@
+<div class="flex h-[calc(100vh-2rem)] gap-4 p-4">
+  <!-- Panel izquierdo: lista de notas -->
+  <div class="w-72 flex flex-col bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden shrink-0">
+    <div class="p-4 border-b border-gray-100">
+      <button id="btn-nueva-nota" class="w-full bg-blue-800 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        Nueva nota
+      </button>
+    </div>
+    <div class="flex-1 overflow-y-auto" id="lista-notas">
+      <div class="p-4 text-center text-gray-400 text-sm" id="sin-notas">No hay notas. Crea una nueva.</div>
+    </div>
+  </div>
+
+  <!-- Panel derecho: editor -->
+  <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+    <div id="editor-vacio" class="flex-1 flex items-center justify-center text-gray-400">
+      <div class="text-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-3 text-gray-300"><path d="M5 5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -14"/><path d="M9 7l6 0"/><path d="M9 11l6 0"/><path d="M9 15l4 0"/></svg>
+        <p>Selecciona o crea una nota</p>
+      </div>
+    </div>
+
+    <div id="editor-activo" class="hidden flex-1 flex flex-col">
+      <div class="flex items-center gap-3 p-4 border-b border-gray-100">
+        <input id="input-titulo" type="text" placeholder="Título de la nota" class="flex-1 text-lg font-semibold text-gray-800 outline-none border-none bg-transparent placeholder-gray-300">
+        <button id="btn-guardar" class="bg-blue-800 hover:bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+          Guardar
+        </button>
+        <button id="btn-eliminar" class="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-all duration-200" title="Eliminar nota">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v5"/><path d="M14 11v5"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg>
+        </button>
+      </div>
+      <textarea id="input-contenido" placeholder="Escribe tu nota aquí..." class="flex-1 p-4 outline-none border-none resize-none text-gray-700 leading-relaxed bg-transparent placeholder-gray-300"></textarea>
+    </div>
+  </div>
+</div>
+
+<script src="./notes/notes.js"></script>

@@ -8,7 +8,7 @@ function cargarPagina(e, pagina) {
         pomodoro: 'Pomodoro/pomodoro.html',
         aichat: 'chatAI/chat.html',
         music: '',
-        notes: '',
+        notes: 'notes/notes.html',
     };
 
     const ruta = rutas[pagina];
@@ -18,7 +18,10 @@ function cargarPagina(e, pagina) {
     }
 
     fetch(ruta)
-        .then(res => res.text())
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status} loading ${ruta}`);
+            return res.text();
+        })
         .then(html => {
             divApp.innerHTML = html;
             divApp.querySelectorAll('script').forEach(scriptOriginal => {
@@ -29,6 +32,9 @@ function cargarPagina(e, pagina) {
                 scriptNuevo.textContent = scriptOriginal.textContent;
                 scriptOriginal.replaceWith(scriptNuevo);
             });
+        })
+        .catch(err => {
+            divApp.innerHTML = `<p class="text-red-500">Error loading page: ${err.message}</p>`;
         });
 }
 
