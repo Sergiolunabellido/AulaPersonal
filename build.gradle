@@ -24,6 +24,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.mysql:mysql-connector-j'
+    runtimeOnly 'com.h2database:h2'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
@@ -35,4 +36,43 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.register('createMinimalJre') {
+    doLast {
+        def javaHome = System.getenv('JAVA_HOME')
+        if (javaHome == null) {
+            throw new GradleException('JAVA_HOME environment variable is not set')
+        }
+        def jlinkCandidates = [
+            file("${javaHome}/bin/jlink.exe"),
+            file("${javaHome}/bin/jlink"),
+        ]
+        def jlinkFile = jlinkCandidates.find { it.exists() }
+        if (jlinkFile == null) {
+            throw new GradleException("jlink not found in ${javaHome}/bin/")
+        }
+        def jmodsPath = file("${javaHome}/jmods")
+        def outputDir = file("${buildDir}/jre")
+
+        outputDir.deleteDir()
+
+        def cmd = [
+            jlinkFile.absolutePath,
+            '--module-path', jmodsPath.absolutePath,
+            '--add-modules', 'java.base,java.sql,java.management,java.naming,java.xml,java.instrument,jdk.unsupported,java.logging,jdk.management,java.security.jgss',
+            '--output', outputDir.absolutePath,
+            '--strip-debug',
+            '--no-header-files',
+            '--no-man-pages'
+        ]
+        def proc = new ProcessBuilder(cmd)
+            .redirectErrorStream(true)
+            .start()
+        proc.waitFor()
+        if (proc.exitValue() != 0) {
+            def err = proc.inputStream.text
+            throw new GradleException("jlink failed (exit ${proc.exitValue()}):\n${err}")
+        }
+    }
 }
