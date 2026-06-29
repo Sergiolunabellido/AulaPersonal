@@ -1,14 +1,14 @@
-function cargarPagina(e, pagina) {
-    if (e) e.preventDefault();
+function cargarPagina(evento, pagina) {
+    if (evento) evento.preventDefault();
     const divApp = document.getElementById('app');
 
     const rutas = {
-        welcome: 'welcome/welcome.html',
-        appblocker: 'AppBlocker/appBlocker.html',
+        bienvenida: 'welcome/welcome.html',
+        bloqueoApps: 'AppBlocker/appBlocker.html',
         pomodoro: 'Pomodoro/pomodoro.html',
-        aichat: 'chatAI/chat.html',
-        music: '',
-        notes: 'notes/notes.html',
+        chatIA: '',
+        musica: '',
+        notas: 'notes/notes.html',
     };
 
     const ruta = rutas[pagina];
@@ -18,9 +18,9 @@ function cargarPagina(e, pagina) {
     }
 
     fetch(ruta)
-        .then(res => {
-            if (!res.ok) throw new Error(`HTTP ${res.status} loading ${ruta}`);
-            return res.text();
+        .then(respuesta => {
+            if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status} loading ${ruta}`);
+            return respuesta.text();
         })
         .then(html => {
             divApp.innerHTML = html;
@@ -33,13 +33,13 @@ function cargarPagina(e, pagina) {
                 scriptOriginal.replaceWith(scriptNuevo);
             });
         })
-        .catch(err => {
-            divApp.innerHTML = `<p class="text-red-500">Error loading page: ${err.message}</p>`;
+        .catch(error => {
+            divApp.innerHTML = `<p class="text-red-500">Error loading page: ${error.message}</p>`;
         });
 }
 
 // Cargar la página de bienvenida al iniciar la aplicación
-document.addEventListener('DOMContentLoaded', () => cargarPagina(null, 'welcome'));
+document.addEventListener('DOMContentLoaded', () => cargarPagina(null, 'bienvenida'));
 
 function alertas(tipo, mensaje) {
     const overlay = document.getElementById('modal-overlay');
@@ -47,14 +47,14 @@ function alertas(tipo, mensaje) {
     const texto = document.getElementById('modal-mensaje');
     const boton = document.getElementById('modal-boton');
 
-    const config = {
+    const colores = {
         info:    { color: 'bg-blue-500', hover: 'hover:bg-blue-600', icono: 'ℹ️' },
         warning: { color: 'bg-yellow-500', hover: 'hover:bg-yellow-600', icono: '⚠️' },
         success: { color: 'bg-green-500', hover: 'hover:bg-green-600', icono: '✅' },
         error:   { color: 'bg-red-500', hover: 'hover:bg-red-600', icono: '❌' },
     };
 
-    const c = config[tipo] || config.info;
+    const c = colores[tipo] || colores.info;
 
     texto.textContent = mensaje;
     icono.textContent = c.icono;

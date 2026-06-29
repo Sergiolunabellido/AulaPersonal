@@ -1,46 +1,3 @@
-/**
- * Módulo Pomodoro - Configurador y temporizador de sesiones de estudio.
- *
- * Ofrece dos modos de funcionamiento:
- *   1. CONFIGURACIÓN (idle): el usuario selecciona duración de sesión,
- *      número de sesiones y duración de descansos. El panel derecho
- *      muestra una vista previa con los totales calculados.
- *   2. TEMPORIZACIÓN (running): una vez iniciado, alterna automáticamente
- *      entre sesiones de estudio y descansos hasta completar todo el ciclo.
- *
- * PERSISTENCIA:
- *   - La configuración (sessionMinutes, sessionCount, breakMinutes) se guarda
- *     en localStorage con clave 'pomodoro-config'.
- *   - El estado del temporizador (running/paused, fase, tiempo restante) se
- *     guarda en localStorage con clave 'pomodoro-timer'. Esto permite que el
- *     temporizador sobreviva a la navegación entre páginas e incluso al cierre
- *     de la aplicación.
- *   - Al restaurar un temporizador en estado 'running', se calcula el tiempo
- *     transcurrido desde la última vez que se guardó y se avanza por las fases
- *     correspondientes (sesión -> descanso -> sesión -> ...).
- *
- * CICLO DE VIDA DEL TEMPORIZADOR:
- *   IDLE ──[Iniciar]──> RUNNING (Sesión 1) ──[fin]──> RUNNING (Descanso 1)
- *   ──[fin]──> RUNNING (Sesión 2) ── ... ──[fin]──> COMPLETED
- *   COMPLETED ──[Nueva sesión]──> IDLE
- *   RUNNING ──[Pausa]──> PAUSED ──[Reanudar]──> RUNNING
- *   RUNNING/PAUSED ──[Detener]──> IDLE
- *
- * Estados:
- *   idle      - Configuración visible, temporizador sin iniciar
- *   running   - Temporizador activo, cuenta atrás en curso
- *   paused    - Temporizador pausado, se conserva el tiempo restante
- *   completed - Todas las sesiones y descansos han finalizado
- *
- * Fases dentro de running:
- *   session   - Periodo de estudio activo
- *   break     - Periodo de descanso entre sesiones
- *
- * RELACIÓN SESIONES-DESCANSOS:
- *   Los descansos ocurren SIEMPRE entre sesiones.
- *   Para N sesiones hay N-1 descansos.
- *   Ej: 3 sesiones -> Sesión1 -> Descanso1 -> Sesión2 -> Descanso2 -> Sesión3 -> COMPLETED
- */
 (function () {
   'use strict';
 
@@ -48,21 +5,21 @@
   //  CLAVES DE LOCALSTORAGE
   // ========================================================================
 
-  /** Clave para la configuración (sessionMinutes, sessionCount, breakMinutes) */
-  const STORAGE_CONFIG_KEY = 'pomodoro-config';
+  /** Clave para la configuración (minutosSesion, numeroSesiones, minutosDescanso) */
+  const CLAVE_CONFIGURACION = 'pomodoro-config';
 
   /** Clave para el estado del temporizador (running/paused, fase, tiempo, etc.) */
-  const STORAGE_TIMER_KEY = 'pomodoro-timer';
+  const CLAVE_TEMPORIZADOR = 'pomodoro-timer';
 
   // ========================================================================
   //  VALORES POR DEFECTO
   // ========================================================================
 
-  /** @type {{ sessionMinutes: number, sessionCount: number, breakMinutes: number }} */
-  const DEFAULTS = {
-    sessionMinutes: 60,
-    sessionCount: 3,
-    breakMinutes: 5,
+  /** @type {{ minutosSesion: number, numeroSesiones: number, minutosDescanso: number }} */
+  const VALORES_DEFECTO = {
+    minutosSesion: 60,
+    numeroSesiones: 3,
+    minutosDescanso: 5,
   };
 
   // ========================================================================
@@ -72,31 +29,31 @@
 
   /**
    * Carga la configuración guardada o devuelve los valores por defecto.
-   * @returns {{ sessionMinutes: number, sessionCount: number, breakMinutes: number }}
+   * @returns {{ minutosSesion: number, numeroSesiones: number, minutosDescanso: number }}
    */
-  function loadState() {
+  function cargarEstado() {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_CONFIG_KEY));
-      if (saved && saved.sessionMinutes != null && saved.sessionCount != null && saved.breakMinutes != null) {
-        return saved;
+      const guardado = JSON.parse(localStorage.getItem(CLAVE_CONFIGURACION));
+      if (guardado && guardado.minutosSesion != null && guardado.numeroSesiones != null && guardado.minutosDescanso != null) {
+        return guardado;
       }
     } catch { /* ignorar datos corruptos */ }
-    return { ...DEFAULTS };
+    return { ...VALORES_DEFECTO };
   }
 
   /**
    * Persiste la configuración en localStorage.
    */
-  function persistState() {
-    localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify({
-      sessionMinutes: state.sessionMinutes,
-      sessionCount: state.sessionCount,
-      breakMinutes: state.breakMinutes,
+  function persistirEstado() {
+    localStorage.setItem(CLAVE_CONFIGURACION, JSON.stringify({
+      minutosSesion: estado.minutosSesion,
+      numeroSesiones: estado.numeroSesiones,
+      minutosDescanso: estado.minutosDescanso,
     }));
   }
 
-  /** @type {{ sessionMinutes: number, sessionCount: number, breakMinutes: number }} */
-  const state = loadState();
+  /** @type {{ minutosSesion: number, numeroSesiones: number, minutosDescanso: number }} */
+  const estado = cargarEstado();
 
   // ========================================================================
   //  PERSISTENCIA DEL ESTADO DEL TEMPORIZADOR
@@ -106,22 +63,22 @@
 
   /**
    * Guarda el estado completo del temporizador en localStorage.
-   * Incluye tanto las variables del timer como la configuración con la que
+   * Incluye tanto las variables del temporizador como la configuración con la que
    * se inició, para poder restaurar correctamente al volver.
    */
-  function persistTimerState() {
-    localStorage.setItem(STORAGE_TIMER_KEY, JSON.stringify({
-      status: timer.status,
-      phase: timer.phase,
-      currentSession: timer.currentSession,
-      currentBreak: timer.currentBreak,
-      remainingSeconds: timer.remainingSeconds,
-      totalPhaseSeconds: timer.totalPhaseSeconds,
-      timestamp: Date.now(),
-      configSnapshot: {
-        sessionMinutes: state.sessionMinutes,
-        sessionCount: state.sessionCount,
-        breakMinutes: state.breakMinutes,
+  function persistirEstadoTemporizador() {
+    localStorage.setItem(CLAVE_TEMPORIZADOR, JSON.stringify({
+      estado: temporizador.estado,
+      fase: temporizador.fase,
+      sesionActual: temporizador.sesionActual,
+      descansoActual: temporizador.descansoActual,
+      segundosRestantes: temporizador.segundosRestantes,
+      totalSegundosFase: temporizador.totalSegundosFase,
+      marcaTiempo: Date.now(),
+      instantaneaConfig: {
+        minutosSesion: estado.minutosSesion,
+        numeroSesiones: estado.numeroSesiones,
+        minutosDescanso: estado.minutosDescanso,
       },
     }));
   }
@@ -130,11 +87,11 @@
    * Lee el estado del temporizador guardado en localStorage.
    * @returns {object|null} Estado guardado o null si no hay nada válido
    */
-  function loadTimerState() {
+  function cargarEstadoTemporizador() {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_TIMER_KEY));
-      if (saved && (saved.status === 'running' || saved.status === 'paused' || saved.status === 'completed')) {
-        return saved;
+      const guardado = JSON.parse(localStorage.getItem(CLAVE_TEMPORIZADOR));
+      if (guardado && (guardado.estado === 'running' || guardado.estado === 'paused' || guardado.estado === 'completed')) {
+        return guardado;
       }
     } catch { /* ignorar */ }
     return null;
@@ -144,8 +101,8 @@
    * Elimina el estado del temporizador de localStorage.
    * Se llama al detener, reiniciar o completar el ciclo.
    */
-  function clearTimerState() {
-    localStorage.removeItem(STORAGE_TIMER_KEY);
+  function limpiarEstadoTemporizador() {
+    localStorage.removeItem(CLAVE_TEMPORIZADOR);
   }
 
   /**
@@ -159,109 +116,109 @@
    *
    * Si el estado era 'completed', muestra la pantalla de finalización.
    *
-   * @param {object} saved - Estado cargado de localStorage
+   * @param {object} guardado - Estado cargado de localStorage
    * @returns {boolean} true si se restauró el temporizador, false si no
    */
-  function restoreTimerState(saved) {
+  function restaurarEstadoTemporizador(guardado) {
     // Restaurar la configuración con la que se inició el temporizador
-    const cfg = saved.configSnapshot || DEFAULTS;
-    state.sessionMinutes = cfg.sessionMinutes;
-    state.sessionCount = cfg.sessionCount;
-    state.breakMinutes = cfg.breakMinutes;
-    persistState();
+    const configuracion = guardado.instantaneaConfig || VALORES_DEFECTO;
+    estado.minutosSesion = configuracion.minutosSesion;
+    estado.numeroSesiones = configuracion.numeroSesiones;
+    estado.minutosDescanso = configuracion.minutosDescanso;
+    persistirEstado();
 
-    if (saved.status === 'completed') {
+    if (guardado.estado === 'completed') {
       // Mostrar pantalla de completado
-      timer.status = 'completed';
-      timer.phase = saved.phase || 'session';
-      timer.currentSession = saved.currentSession || 1;
-      timer.currentBreak = saved.currentBreak || 0;
-      timer.remainingSeconds = 0;
-      timer.totalPhaseSeconds = saved.totalPhaseSeconds || 1;
-      showTimerView('completed');
-      setControlsEnabled(true);
-      updatePreviewUI();
+      temporizador.estado = 'completed';
+      temporizador.fase = guardado.fase || 'session';
+      temporizador.sesionActual = guardado.sesionActual || 1;
+      temporizador.descansoActual = guardado.descansoActual || 0;
+      temporizador.segundosRestantes = 0;
+      temporizador.totalSegundosFase = guardado.totalSegundosFase || 1;
+      mostrarVistaTemporizador('completed');
+      establecerControlesHabilitados(true);
+      actualizarVistaPrevia();
       return true;
     }
 
-    if (saved.status === 'paused') {
-      timer.status = 'paused';
-      timer.phase = saved.phase;
-      timer.currentSession = saved.currentSession;
-      timer.currentBreak = saved.currentBreak;
-      timer.remainingSeconds = saved.remainingSeconds;
-      timer.totalPhaseSeconds = saved.totalPhaseSeconds;
-      showTimerView('active');
-      setControlsEnabled(false);
-      updatePreviewUI();
-      updateTimerUI();
-      el.btnPause.innerHTML = `
+    if (guardado.estado === 'paused') {
+      temporizador.estado = 'paused';
+      temporizador.fase = guardado.fase;
+      temporizador.sesionActual = guardado.sesionActual;
+      temporizador.descansoActual = guardado.descansoActual;
+      temporizador.segundosRestantes = guardado.segundosRestantes;
+      temporizador.totalSegundosFase = guardado.totalSegundosFase;
+      mostrarVistaTemporizador('active');
+      establecerControlesHabilitados(false);
+      actualizarVistaPrevia();
+      actualizarVistaTemporizador();
+      dom.btnPausa.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         Reanudar
       `;
       return true;
     }
 
-    if (saved.status === 'running') {
+    if (guardado.estado === 'running') {
       // Calcular el tiempo transcurrido mientras se estuvo fuera
-      const elapsedSeconds = Math.floor((Date.now() - saved.timestamp) / 1000);
-      let remaining = saved.remainingSeconds - elapsedSeconds;
-      let phase = saved.phase;
-      let currentSession = saved.currentSession;
-      let currentBreak = saved.currentBreak;
-      const totalPhaseSeconds = saved.totalPhaseSeconds;
+      const segundosTranscurridos = Math.floor((Date.now() - guardado.marcaTiempo) / 1000);
+      let restante = guardado.segundosRestantes - segundosTranscurridos;
+      let fase = guardado.fase;
+      let sesionActual = guardado.sesionActual;
+      let descansoActual = guardado.descansoActual;
+      const totalSegundosFase = guardado.totalSegundosFase;
 
       // Avanzar por las fases hasta ponerse al día
-      while (remaining <= 0) {
-        if (phase === 'session') {
-          if (currentSession < cfg.sessionCount) {
+      while (restante <= 0) {
+        if (fase === 'session') {
+          if (sesionActual < configuracion.numeroSesiones) {
             // Pasar a descanso
-            currentBreak++;
-            phase = 'break';
-            remaining = cfg.breakMinutes * 60 + remaining; // remaining es negativo
+            descansoActual++;
+            fase = 'break';
+            restante = configuracion.minutosDescanso * 60 + restante;
           } else {
             // Última sesión -> completado
-            timer.status = 'completed';
-            timer.phase = 'session';
-            timer.currentSession = currentSession;
-            timer.currentBreak = currentBreak;
-            timer.remainingSeconds = 0;
-            timer.totalPhaseSeconds = totalPhaseSeconds;
-            showTimerView('completed');
-            setControlsEnabled(true);
-            updatePreviewUI();
-            clearTimerState();
+            temporizador.estado = 'completed';
+            temporizador.fase = 'session';
+            temporizador.sesionActual = sesionActual;
+            temporizador.descansoActual = descansoActual;
+            temporizador.segundosRestantes = 0;
+            temporizador.totalSegundosFase = totalSegundosFase;
+            mostrarVistaTemporizador('completed');
+            establecerControlesHabilitados(true);
+            actualizarVistaPrevia();
+            limpiarEstadoTemporizador();
             return true;
           }
         } else {
           // Viene de un descanso -> siguiente sesión
-          currentSession++;
-          phase = 'session';
-          remaining = cfg.sessionMinutes * 60 + remaining; // remaining es negativo
+          sesionActual++;
+          fase = 'session';
+          restante = configuracion.minutosSesion * 60 + restante;
         }
       }
 
       // El temporizador sigue activo
-      timer.status = 'running';
-      timer.phase = phase;
-      timer.currentSession = currentSession;
-      timer.currentBreak = currentBreak;
-      timer.remainingSeconds = remaining;
-      timer.totalPhaseSeconds = phase === 'session'
-        ? cfg.sessionMinutes * 60
-        : cfg.breakMinutes * 60;
+      temporizador.estado = 'running';
+      temporizador.fase = fase;
+      temporizador.sesionActual = sesionActual;
+      temporizador.descansoActual = descansoActual;
+      temporizador.segundosRestantes = restante;
+      temporizador.totalSegundosFase = fase === 'session'
+        ? configuracion.minutosSesion * 60
+        : configuracion.minutosDescanso * 60;
 
-      showTimerView('active');
-      setControlsEnabled(false);
-      updatePreviewUI();
-      updateTimerUI();
-      el.btnPause.innerHTML = `
+      mostrarVistaTemporizador('active');
+      establecerControlesHabilitados(false);
+      actualizarVistaPrevia();
+      actualizarVistaTemporizador();
+      dom.btnPausa.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
         Pausa
       `;
 
       // Reanudar el intervalo
-      timer.intervalId = setInterval(tick, 1000);
+      temporizador.idIntervalo = setInterval(ejecutarTick, 1000);
       return true;
     }
 
@@ -273,15 +230,15 @@
   //  Gestiona el ciclo de ejecución del pomodoro una vez iniciado.
   // ========================================================================
 
-  /** @type {{ status: string, phase: string, currentSession: number, currentBreak: number, remainingSeconds: number, totalPhaseSeconds: number, intervalId: number|null }} */
-  const timer = {
-    status: 'idle',
-    phase: 'session',
-    currentSession: 1,
-    currentBreak: 0,
-    remainingSeconds: 0,
-    totalPhaseSeconds: 0,
-    intervalId: null,
+  /** @type {{ estado: string, fase: string, sesionActual: number, descansoActual: number, segundosRestantes: number, totalSegundosFase: number, idIntervalo: number|null }} */
+  const temporizador = {
+    estado: 'idle',
+    fase: 'session',
+    sesionActual: 1,
+    descansoActual: 0,
+    segundosRestantes: 0,
+    totalSegundosFase: 0,
+    idIntervalo: null,
   };
 
   // ========================================================================
@@ -289,35 +246,35 @@
   // ========================================================================
 
   /** @type {Object<string, HTMLElement|NodeListOf<HTMLElement>>} */
-  const el = {
-    sessionTimeButtons: document.querySelectorAll('#session-time-buttons button'),
-    sessionCount: document.getElementById('session-count'),
-    sessionCountMinus: document.getElementById('session-count-minus'),
-    sessionCountPlus: document.getElementById('session-count-plus'),
-    breakTimeButtons: document.querySelectorAll('#break-time-buttons button'),
-    breakCount: document.getElementById('break-count'),
+  const dom = {
+    botonesTiempoSesion: document.querySelectorAll('#session-time-buttons button'),
+    contadorSesiones: document.getElementById('session-count'),
+    btnRestarSesion: document.getElementById('session-count-minus'),
+    btnSumarSesion: document.getElementById('session-count-plus'),
+    botonesTiempoDescanso: document.querySelectorAll('#break-time-buttons button'),
+    contadorDescansos: document.getElementById('break-count'),
 
-    previewSessions: document.getElementById('preview-sessions'),
-    previewTotalHours: document.getElementById('preview-total-hours'),
-    previewTotalMinutes: document.getElementById('preview-total-minutes'),
-    previewBreakTime: document.getElementById('preview-break-time'),
-    previewTotalBreaks: document.getElementById('preview-total-breaks'),
+    vistaPreviaSesiones: document.getElementById('preview-sessions'),
+    vistaPreviaTotalHoras: document.getElementById('preview-total-hours'),
+    vistaPreviaTotalMinutos: document.getElementById('preview-total-minutes'),
+    vistaPreviaTiempoDescanso: document.getElementById('preview-break-time'),
+    vistaPreviaTotalDescansos: document.getElementById('preview-total-breaks'),
 
-    timerIdle: document.getElementById('timer-idle'),
-    timerActive: document.getElementById('timer-active'),
-    timerCompleted: document.getElementById('timer-completed'),
-    btnStart: document.getElementById('btn-start'),
-    btnPause: document.getElementById('btn-pause'),
-    btnStop: document.getElementById('btn-stop'),
-    btnReset: document.getElementById('btn-reset'),
-    timerPhaseLabel: document.getElementById('timer-phase-label'),
-    timerCountdown: document.getElementById('timer-countdown'),
-    timerProgress: document.getElementById('timer-progress'),
+    temporizadorInactivo: document.getElementById('timer-idle'),
+    temporizadorActivo: document.getElementById('timer-active'),
+    temporizadorCompletado: document.getElementById('timer-completed'),
+    btnIniciar: document.getElementById('btn-start'),
+    btnPausa: document.getElementById('btn-pause'),
+    btnDetener: document.getElementById('btn-stop'),
+    btnReiniciar: document.getElementById('btn-reset'),
+    etiquetaFase: document.getElementById('timer-phase-label'),
+    cuentaAtras: document.getElementById('timer-countdown'),
+    barraProgreso: document.getElementById('timer-progress'),
 
-    sessionConfigBlock: document.getElementById('session-config-block'),
-    breakConfigBlock: document.getElementById('break-config-block'),
-    sessionControls: document.getElementById('session-controls'),
-    breakControls: document.getElementById('break-controls'),
+    bloqueConfigSesion: document.getElementById('session-config-block'),
+    bloqueConfigDescanso: document.getElementById('break-config-block'),
+    controlesSesion: document.getElementById('session-controls'),
+    controlesDescanso: document.getElementById('break-controls'),
   };
 
   // ========================================================================
@@ -329,8 +286,8 @@
    * @returns {number}
    */
   function calcularDuracionTotalMinutos() {
-    const sesiones = state.sessionMinutes * state.sessionCount;
-    const descansos = state.breakMinutes * Math.max(0, state.sessionCount - 1);
+    const sesiones = estado.minutosSesion * estado.numeroSesiones;
+    const descansos = estado.minutosDescanso * Math.max(0, estado.numeroSesiones - 1);
     return sesiones + descansos;
   }
 
@@ -372,29 +329,29 @@
 
   /**
    * Convierte minutos a etiqueta textual.
-   * @param {number} minutes
+   * @param {number} minutos
    * @returns {string} Ej: "1 h", "1 h 30 min", "30 min"
    */
-  function formatSessionLabel(minutes) {
-    if (minutes === 60) return '1 h';
-    if (minutes > 60 && minutes % 60 === 0) return `${minutes / 60} h`;
-    if (minutes > 60) return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
-    return `${minutes} min`;
+  function formatearEtiquetaSesion(minutos) {
+    if (minutos === 60) return '1 h';
+    if (minutos > 60 && minutos % 60 === 0) return `${minutos / 60} h`;
+    if (minutos > 60) return `${Math.floor(minutos / 60)} h ${minutos % 60} min`;
+    return `${minutos} min`;
   }
 
   /**
    * Convierte segundos a formato mm:ss o h:mm:ss.
-   * @param {number} totalSeconds
+   * @param {number} totalSegundos
    * @returns {string}
    */
-  function formatCountdown(totalSeconds) {
-    if (totalSeconds <= 0) return '00:00';
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    const pad = (n) => String(n).padStart(2, '0');
-    if (h > 0) return `${pad(h)}:${pad(m)}:${pad(s)}`;
-    return `${pad(m)}:${pad(s)}`;
+  function formatearCuentaAtras(totalSegundos) {
+    if (totalSegundos <= 0) return '00:00';
+    const h = Math.floor(totalSegundos / 3600);
+    const m = Math.floor((totalSegundos % 3600) / 60);
+    const s = totalSegundos % 60;
+    const rellenar = (numero) => String(numero).padStart(2, '0');
+    if (h > 0) return `${rellenar(h)}:${rellenar(m)}:${rellenar(s)}`;
+    return `${rellenar(m)}:${rellenar(s)}`;
   }
 
   // ========================================================================
@@ -404,83 +361,83 @@
   /**
    * Actualiza el panel Session Preview y los indicadores de configuración.
    */
-  function updatePreviewUI() {
-    const { sessionMinutes, sessionCount, breakMinutes } = state;
-    const breakCount = Math.max(0, sessionCount - 1);
-    const totalMinutes = sessionMinutes * sessionCount;
-    const totalHours = Math.floor(totalMinutes / 60);
-    const totalRemainingMinutes = totalMinutes % 60;
+  function actualizarVistaPrevia() {
+    const { minutosSesion, numeroSesiones, minutosDescanso } = estado;
+    const numeroDescansos = Math.max(0, numeroSesiones - 1);
+    const totalMinutos = minutosSesion * numeroSesiones;
+    const totalHoras = Math.floor(totalMinutos / 60);
+    const minutosRestantes = totalMinutos % 60;
 
-    el.sessionCount.textContent = sessionCount;
-    el.breakCount.textContent = breakCount;
+    dom.contadorSesiones.textContent = numeroSesiones;
+    dom.contadorDescansos.textContent = numeroDescansos;
 
-    const sessionLabel = formatSessionLabel(sessionMinutes);
-    el.previewSessions.textContent = `${sessionCount} sesiones de ${sessionLabel}`;
+    const etiquetaSesion = formatearEtiquetaSesion(minutosSesion);
+    dom.vistaPreviaSesiones.textContent = `${numeroSesiones} sesiones de ${etiquetaSesion}`;
 
-    if (totalHours > 0 && totalRemainingMinutes > 0) {
-      el.previewTotalHours.textContent = `${totalHours} h ${totalRemainingMinutes} min`;
-    } else if (totalHours > 0) {
-      el.previewTotalHours.textContent = `${totalHours} h`;
+    if (totalHoras > 0 && minutosRestantes > 0) {
+      dom.vistaPreviaTotalHoras.textContent = `${totalHoras} h ${minutosRestantes} min`;
+    } else if (totalHoras > 0) {
+      dom.vistaPreviaTotalHoras.textContent = `${totalHoras} h`;
     } else {
-      el.previewTotalHours.textContent = `${totalRemainingMinutes} min`;
+      dom.vistaPreviaTotalHoras.textContent = `${minutosRestantes} min`;
     }
 
-    el.previewTotalMinutes.textContent = `${totalMinutes} min`;
-    el.previewBreakTime.textContent = `${breakMinutes} min`;
-    el.previewTotalBreaks.textContent = `${breakCount} descanso${breakCount !== 1 ? 's' : ''}`;
+    dom.vistaPreviaTotalMinutos.textContent = `${totalMinutos} min`;
+    dom.vistaPreviaTiempoDescanso.textContent = `${minutosDescanso} min`;
+    dom.vistaPreviaTotalDescansos.textContent = `${numeroDescansos} descanso${numeroDescansos !== 1 ? 's' : ''}`;
   }
 
   /**
    * Actualiza los elementos del temporizador en ejecución.
    */
-  function updateTimerUI() {
-    const { phase, currentSession, currentBreak, remainingSeconds, totalPhaseSeconds } = timer;
-    const { sessionCount } = state;
-    const breakCount = Math.max(0, sessionCount - 1);
+  function actualizarVistaTemporizador() {
+    const { fase, sesionActual, descansoActual, segundosRestantes, totalSegundosFase } = temporizador;
+    const { numeroSesiones } = estado;
+    const numeroDescansos = Math.max(0, numeroSesiones - 1);
 
-    el.timerPhaseLabel.textContent = phase === 'session'
-      ? `SESIÓN ${currentSession} de ${sessionCount}`
-      : `DESCANSO ${currentBreak} de ${breakCount}`;
+    dom.etiquetaFase.textContent = fase === 'session'
+      ? `SESIÓN ${sesionActual} de ${numeroSesiones}`
+      : `DESCANSO ${descansoActual} de ${numeroDescansos}`;
 
-    el.timerCountdown.textContent = formatCountdown(remainingSeconds);
+    dom.cuentaAtras.textContent = formatearCuentaAtras(segundosRestantes);
 
-    const progress = totalPhaseSeconds > 0
-      ? (remainingSeconds / totalPhaseSeconds) * 100
+    const progreso = totalSegundosFase > 0
+      ? (segundosRestantes / totalSegundosFase) * 100
       : 0;
-    el.timerProgress.style.width = `${Math.max(0, progress)}%`;
+    dom.barraProgreso.style.width = `${Math.max(0, progreso)}%`;
 
-    el.timerProgress.className = `h-2.5 rounded-full transition-all duration-700 ease-linear ${
-      phase === 'session' ? 'bg-blue-600' : 'bg-green-500'
+    dom.barraProgreso.className = `h-2.5 rounded-full transition-all duration-700 ease-linear ${
+      fase === 'session' ? 'bg-blue-600' : 'bg-green-500'
     }`;
   }
 
   /**
    * Muestra una de las tres vistas del panel temporizador.
-   * @param {'idle'|'active'|'completed'} view
+   * @param {'idle'|'active'|'completed'} vista
    */
-  function showTimerView(view) {
-    el.timerIdle.classList.toggle('hidden', view !== 'idle');
-    el.timerActive.classList.toggle('hidden', view !== 'active');
-    el.timerCompleted.classList.toggle('hidden', view !== 'completed');
+  function mostrarVistaTemporizador(vista) {
+    dom.temporizadorInactivo.classList.toggle('hidden', vista !== 'idle');
+    dom.temporizadorActivo.classList.toggle('hidden', vista !== 'active');
+    dom.temporizadorCompletado.classList.toggle('hidden', vista !== 'completed');
   }
 
   /**
    * Habilita o deshabilita los controles de configuración.
-   * @param {boolean} enabled
+   * @param {boolean} habilitado
    */
-  function setControlsEnabled(enabled) {
-    const value = !enabled;
-    el.sessionTimeButtons.forEach(btn => btn.disabled = value);
-    el.breakTimeButtons.forEach(btn => btn.disabled = value);
-    el.sessionCountMinus.disabled = value;
-    el.sessionCountPlus.disabled = value;
+  function establecerControlesHabilitados(habilitado) {
+    const deshabilitado = !habilitado;
+    dom.botonesTiempoSesion.forEach(btn => btn.disabled = deshabilitado);
+    dom.botonesTiempoDescanso.forEach(btn => btn.disabled = deshabilitado);
+    dom.btnRestarSesion.disabled = deshabilitado;
+    dom.btnSumarSesion.disabled = deshabilitado;
 
-    el.sessionControls.classList.toggle('opacity-100', enabled);
-    el.sessionControls.classList.toggle('opacity-50', !enabled);
-    el.sessionControls.classList.toggle('pointer-events-none', !enabled);
-    el.breakControls.classList.toggle('opacity-100', enabled);
-    el.breakControls.classList.toggle('opacity-50', !enabled);
-    el.breakControls.classList.toggle('pointer-events-none', !enabled);
+    dom.controlesSesion.classList.toggle('opacity-100', habilitado);
+    dom.controlesSesion.classList.toggle('opacity-50', !habilitado);
+    dom.controlesSesion.classList.toggle('pointer-events-none', !habilitado);
+    dom.controlesDescanso.classList.toggle('opacity-100', habilitado);
+    dom.controlesDescanso.classList.toggle('opacity-50', !habilitado);
+    dom.controlesDescanso.classList.toggle('pointer-events-none', !habilitado);
   }
 
   // ========================================================================
@@ -489,22 +446,22 @@
 
   /**
    * Marca el botón activo dentro de un grupo.
-   * @param {NodeListOf<HTMLButtonElement>} buttons
-   * @param {number} value
+   * @param {NodeListOf<HTMLButtonElement>} botones
+   * @param {number} valor
    */
-  function setActiveButton(buttons, value) {
-    buttons.forEach(btn => {
-      const isActive = parseInt(btn.dataset.minutes) === value;
-      const isSession = buttons === el.sessionTimeButtons;
-      btn.classList.toggle('bg-blue-50', isActive && isSession);
-      btn.classList.toggle('border-blue-500', isActive && isSession);
-      btn.classList.toggle('text-blue-700', isActive && isSession);
-      btn.classList.toggle('bg-green-50', isActive && !isSession);
-      btn.classList.toggle('border-green-500', isActive && !isSession);
-      btn.classList.toggle('text-green-700', isActive && !isSession);
-      btn.classList.toggle('bg-white', !isActive);
-      btn.classList.toggle('border-gray-200', !isActive);
-      btn.classList.toggle('text-gray-600', !isActive);
+  function marcarBotonActivo(botones, valor) {
+    botones.forEach(btn => {
+      const esActivo = parseInt(btn.dataset.minutes) === valor;
+      const esSesion = botones === dom.botonesTiempoSesion;
+      btn.classList.toggle('bg-blue-50', esActivo && esSesion);
+      btn.classList.toggle('border-blue-500', esActivo && esSesion);
+      btn.classList.toggle('text-blue-700', esActivo && esSesion);
+      btn.classList.toggle('bg-green-50', esActivo && !esSesion);
+      btn.classList.toggle('border-green-500', esActivo && !esSesion);
+      btn.classList.toggle('text-green-700', esActivo && !esSesion);
+      btn.classList.toggle('bg-white', !esActivo);
+      btn.classList.toggle('border-gray-200', !esActivo);
+      btn.classList.toggle('text-gray-600', !esActivo);
     });
   }
 
@@ -513,117 +470,143 @@
   // ========================================================================
 
   /**
+   * Reproduce un sonido de aviso usando la Web Audio API.
+   */
+  function reproducirSonido() {
+    try {
+      const panelAudio = new (window.AudioContext || window.webkitAudioContext)();
+      const ondaSonora = panelAudio.createOscillator();
+      const volumenGain = panelAudio.createGain();
+      ondaSonora.connect(volumenGain);
+      volumenGain.connect(panelAudio.destination);
+
+      ondaSonora.frequency.value = 880;
+      ondaSonora.type = 'sine';
+
+      volumenGain.gain.setValueAtTime(0.3, panelAudio.currentTime);
+      volumenGain.gain.exponentialRampToValueAtTime(0.01, panelAudio.currentTime + 0.5);
+
+      ondaSonora.start();
+      ondaSonora.stop(panelAudio.currentTime + 0.5);
+    } catch (_) {
+      alertas('error', 'La generación del sonido de finalización de sesiones o descansos a fallado.');
+    }
+  }
+
+  /**
    * Maneja la transición entre fases cuando el tiempo llega a cero.
    */
-  function handlePhaseEnd() {
-    const { sessionCount, breakMinutes, sessionMinutes } = state;
+  function manejarFinFase() {
+    const { numeroSesiones, minutosDescanso, minutosSesion } = estado;
 
-    if (timer.phase === 'session') {
-      if (timer.currentSession < sessionCount) {
-        timer.currentBreak++;
-        timer.phase = 'break';
-        timer.remainingSeconds = breakMinutes * 60;
-        timer.totalPhaseSeconds = timer.remainingSeconds;
+    reproducirSonido();
+
+    if (temporizador.fase === 'session') {
+      if (temporizador.sesionActual < numeroSesiones) {
+        temporizador.descansoActual++;
+        temporizador.fase = 'break';
+        temporizador.segundosRestantes = minutosDescanso * 60;
+        temporizador.totalSegundosFase = temporizador.segundosRestantes;
       } else {
-        timer.status = 'completed';
-        clearInterval(timer.intervalId);
-        timer.intervalId = null;
+        temporizador.estado = 'completed';
+        clearInterval(temporizador.idIntervalo);
+        temporizador.idIntervalo = null;
         desbloquearTodasLasApps();
-        showTimerView('completed');
-        setControlsEnabled(true);
-        clearTimerState();
+        mostrarVistaTemporizador('completed');
+        establecerControlesHabilitados(true);
+        limpiarEstadoTemporizador();
         return;
       }
     } else {
-      timer.currentSession++;
-      timer.phase = 'session';
-      timer.remainingSeconds = sessionMinutes * 60;
-      timer.totalPhaseSeconds = timer.remainingSeconds;
+      temporizador.sesionActual++;
+      temporizador.fase = 'session';
+      temporizador.segundosRestantes = minutosSesion * 60;
+      temporizador.totalSegundosFase = temporizador.segundosRestantes;
     }
 
-    persistTimerState();
-    updateTimerUI();
+    persistirEstadoTemporizador();
+    actualizarVistaTemporizador();
   }
 
   /**
    * Ejecuta un tick del temporizador (cada segundo).
    */
-  function tick() {
-    if (timer.status !== 'running') return;
+  function ejecutarTick() {
+    if (temporizador.estado !== 'running') return;
 
-    timer.remainingSeconds--;
+    temporizador.segundosRestantes--;
 
-    if (timer.remainingSeconds <= 0) {
-      handlePhaseEnd();
+    if (temporizador.segundosRestantes <= 0) {
+      manejarFinFase();
     } else {
-      updateTimerUI();
+      actualizarVistaTemporizador();
     }
 
     // Persistir en cada tick para que al navegar a otra página o al cerrar
     // la app se pierda como máximo 1 segundo de precisión
-    persistTimerState();
+    persistirEstadoTemporizador();
   }
 
   /**
    * Inicia el temporizador con la configuración actual.
    */
-  function startTimer() {
+  function iniciarTemporizador() {
     // Limpiar cualquier estado previo
-    clearTimerState();
+    limpiarEstadoTemporizador();
 
-    timer.status = 'running';
-    timer.phase = 'session';
-    timer.currentSession = 1;
-    timer.currentBreak = 0;
-    timer.remainingSeconds = state.sessionMinutes * 60;
-    timer.totalPhaseSeconds = timer.remainingSeconds;
+    temporizador.estado = 'running';
+    temporizador.fase = 'session';
+    temporizador.sesionActual = 1;
+    temporizador.descansoActual = 0;
+    temporizador.segundosRestantes = estado.minutosSesion * 60;
+    temporizador.totalSegundosFase = temporizador.segundosRestantes;
 
-    showTimerView('active');
-    setControlsEnabled(false);
-    updateTimerUI();
+    mostrarVistaTemporizador('active');
+    establecerControlesHabilitados(false);
+    actualizarVistaTemporizador();
 
     bloquearAppsSeleccionadas();
-    persistTimerState();
+    persistirEstadoTemporizador();
 
-    timer.intervalId = setInterval(tick, 1000);
+    temporizador.idIntervalo = setInterval(ejecutarTick, 1000);
   }
 
   /**
    * Pausa o reanuda el temporizador.
    */
-  function togglePause() {
-    if (timer.status === 'running') {
-      timer.status = 'paused';
-      clearInterval(timer.intervalId);
-      timer.intervalId = null;
-      el.btnPause.innerHTML = `
+  function alternarPausa() {
+    if (temporizador.estado === 'running') {
+      temporizador.estado = 'paused';
+      clearInterval(temporizador.idIntervalo);
+      temporizador.idIntervalo = null;
+      dom.btnPausa.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         Reanudar
       `;
-      persistTimerState();
-    } else if (timer.status === 'paused') {
-      timer.status = 'running';
-      timer.intervalId = setInterval(tick, 1000);
-      el.btnPause.innerHTML = `
+      persistirEstadoTemporizador();
+    } else if (temporizador.estado === 'paused') {
+      temporizador.estado = 'running';
+      temporizador.idIntervalo = setInterval(ejecutarTick, 1000);
+      dom.btnPausa.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
         Pausa
       `;
-      persistTimerState();
+      persistirEstadoTemporizador();
     }
   }
 
   /**
    * Detiene el temporizador y vuelve al estado idle.
    */
-  function stopTimer() {
-    clearInterval(timer.intervalId);
-    timer.intervalId = null;
-    timer.status = 'idle';
+  function detenerTemporizador() {
+    clearInterval(temporizador.idIntervalo);
+    temporizador.idIntervalo = null;
+    temporizador.estado = 'idle';
     desbloquearTodasLasApps();
-    clearTimerState();
-    showTimerView('idle');
-    setControlsEnabled(true);
-    el.btnPause.innerHTML = `
+    limpiarEstadoTemporizador();
+    mostrarVistaTemporizador('idle');
+    establecerControlesHabilitados(true);
+    dom.btnPausa.innerHTML = `
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
       Pausa
     `;
@@ -632,11 +615,11 @@
   /**
    * Reinicia el pomodoro desde completed a idle.
    */
-  function resetTimer() {
-    timer.status = 'idle';
+  function reiniciarTemporizador() {
+    temporizador.estado = 'idle';
     desbloquearTodasLasApps();
-    clearTimerState();
-    showTimerView('idle');
+    limpiarEstadoTemporizador();
+    mostrarVistaTemporizador('idle');
   }
 
   // ========================================================================
@@ -646,72 +629,72 @@
   /**
    * Inicializa el componente.
    */
-  function init() {
+  function inicializar() {
     // -- Restaurar estado del temporizador si existe --
-    const savedTimer = loadTimerState();
-    if (savedTimer) {
-      restoreTimerState(savedTimer);
+    const temporizadorGuardado = cargarEstadoTemporizador();
+    if (temporizadorGuardado) {
+      restaurarEstadoTemporizador(temporizadorGuardado);
     } else {
       // No hay temporizador previo, mostrar idle con la config guardada
-      setActiveButton(el.sessionTimeButtons, state.sessionMinutes);
-      setActiveButton(el.breakTimeButtons, state.breakMinutes);
-      updatePreviewUI();
-      showTimerView('idle');
-      setControlsEnabled(true);
+      marcarBotonActivo(dom.botonesTiempoSesion, estado.minutosSesion);
+      marcarBotonActivo(dom.botonesTiempoDescanso, estado.minutosDescanso);
+      actualizarVistaPrevia();
+      mostrarVistaTemporizador('idle');
+      establecerControlesHabilitados(true);
     }
 
     // -- Eventos: selección de tiempo de sesión --
-    el.sessionTimeButtons.forEach(btn => {
+    dom.botonesTiempoSesion.forEach(btn => {
       btn.addEventListener('click', () => {
-        state.sessionMinutes = parseInt(btn.dataset.minutes);
-        setActiveButton(el.sessionTimeButtons, state.sessionMinutes);
-        persistState();
-        updatePreviewUI();
+        estado.minutosSesion = parseInt(btn.dataset.minutes);
+        marcarBotonActivo(dom.botonesTiempoSesion, estado.minutosSesion);
+        persistirEstado();
+        actualizarVistaPrevia();
       });
     });
 
     // -- Eventos: selección de tiempo de descanso --
-    el.breakTimeButtons.forEach(btn => {
+    dom.botonesTiempoDescanso.forEach(btn => {
       btn.addEventListener('click', () => {
-        state.breakMinutes = parseInt(btn.dataset.minutes);
-        setActiveButton(el.breakTimeButtons, state.breakMinutes);
-        persistState();
-        updatePreviewUI();
+        estado.minutosDescanso = parseInt(btn.dataset.minutes);
+        marcarBotonActivo(dom.botonesTiempoDescanso, estado.minutosDescanso);
+        persistirEstado();
+        actualizarVistaPrevia();
       });
     });
 
     // -- Eventos: contador de sesiones --
-    el.sessionCountMinus.addEventListener('click', () => {
-      if (state.sessionCount > 1) {
-        state.sessionCount--;
-        persistState();
-        updatePreviewUI();
+    dom.btnRestarSesion.addEventListener('click', () => {
+      if (estado.numeroSesiones > 1) {
+        estado.numeroSesiones--;
+        persistirEstado();
+        actualizarVistaPrevia();
       }
     });
-    el.sessionCountPlus.addEventListener('click', () => {
-      if (state.sessionCount < 50) {
-        state.sessionCount++;
-        persistState();
-        updatePreviewUI();
+    dom.btnSumarSesion.addEventListener('click', () => {
+      if (estado.numeroSesiones < 50) {
+        estado.numeroSesiones++;
+        persistirEstado();
+        actualizarVistaPrevia();
       }
     });
 
     // -- Eventos: temporizador --
-    el.btnStart.addEventListener('click', startTimer);
-    el.btnPause.addEventListener('click', togglePause);
-    el.btnStop.addEventListener('click', stopTimer);
-    el.btnReset.addEventListener('click', resetTimer);
+    dom.btnIniciar.addEventListener('click', iniciarTemporizador);
+    dom.btnPausa.addEventListener('click', alternarPausa);
+    dom.btnDetener.addEventListener('click', detenerTemporizador);
+    dom.btnReiniciar.addEventListener('click', reiniciarTemporizador);
 
     // -- Auto-inicio desde la barra lateral --
-    if (window.autoIniciarPomodoro) {
-      window.autoIniciarPomodoro = false;
-      startTimer();
+    if (window.iniciarPomodoroAuto) {
+      window.iniciarPomodoroAuto = false;
+      iniciarTemporizador();
     }
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', inicializar);
   } else {
-    init();
+    inicializar();
   }
 })();

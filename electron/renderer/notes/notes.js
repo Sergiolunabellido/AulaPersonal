@@ -1,10 +1,10 @@
 (function () {
   'use strict';
 
-  const API_BASE = 'http://localhost:8080/api/notas';
-  let notaActualId = null;
+  const URL_API = 'http://localhost:8080/api/notas';
+  let idNotaActual = null;
 
-  const el = {
+  const dom = {
     lista: document.getElementById('lista-notas'),
     sinNotas: document.getElementById('sin-notas'),
     editorVacio: document.getElementById('editor-vacio'),
@@ -16,21 +16,21 @@
     btnEliminar: document.getElementById('btn-eliminar'),
   };
 
-  async function api(method, path, body) {
-    const opts = {
-      method,
+  async function peticion(metodo, ruta, cuerpo) {
+    const opciones = {
+      method: metodo,
       headers: { 'Content-Type': 'application/json' },
     };
-    if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(`${API_BASE}${path}`, opts);
-    if (!res.ok) throw new Error(`${method} ${path} → ${res.status}`);
-    if (res.status === 204) return null;
-    return res.json();
+    if (cuerpo) opciones.body = JSON.stringify(cuerpo);
+    const respuesta = await fetch(`${URL_API}${ruta}`, opciones);
+    if (!respuesta.ok) throw new Error(`${metodo} ${ruta} → ${respuesta.status}`);
+    if (respuesta.status === 204) return null;
+    return respuesta.json();
   }
 
   function mostrarNotaEnLista(nota) {
     const div = document.createElement('div');
-    div.className = `p-3 border-b border-gray-50 cursor-pointer hover:bg-blue-50 transition-colors ${notaActualId === nota.id ? 'bg-blue-50 border-l-4 border-l-blue-800' : ''}`;
+    div.className = `p-3 border-b border-gray-50 cursor-pointer hover:bg-blue-50 transition-colors ${idNotaActual === nota.id ? 'bg-blue-50 border-l-4 border-l-blue-800' : ''}`;
     div.dataset.id = nota.id;
 
     const titulo = document.createElement('p');
@@ -39,7 +39,7 @@
 
     const fecha = document.createElement('p');
     fecha.className = 'text-xs text-gray-400 mt-0.5';
-    const d = new Date(nota.updatedAt);
+    const d = new Date(nota.actualizadoEn);
     fecha.textContent = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     div.appendChild(titulo);
@@ -49,41 +49,41 @@
   }
 
   function renderizarLista(notas) {
-    el.lista.innerHTML = '';
+    dom.lista.innerHTML = '';
     if (notas.length === 0) {
-      el.lista.appendChild(el.sinNotas);
+      dom.lista.appendChild(dom.sinNotas);
       return;
     }
     for (const nota of notas) {
-      el.lista.appendChild(mostrarNotaEnLista(nota));
+      dom.lista.appendChild(mostrarNotaEnLista(nota));
     }
   }
 
   function mostrarEditor(nota) {
-    notaActualId = nota.id;
-    el.editorVacio.classList.add('hidden');
-    el.editorActivo.classList.remove('hidden');
-    el.inputTitulo.value = nota.titulo;
-    el.inputContenido.value = nota.contenido;
+    idNotaActual = nota.id;
+    dom.editorVacio.classList.add('hidden');
+    dom.editorActivo.classList.remove('hidden');
+    dom.inputTitulo.value = nota.titulo;
+    dom.inputContenido.value = nota.contenido;
   }
 
   function limpiarEditor() {
-    notaActualId = null;
-    el.editorVacio.classList.remove('hidden');
-    el.editorActivo.classList.add('hidden');
-    el.inputTitulo.value = '';
-    el.inputContenido.value = '';
+    idNotaActual = null;
+    dom.editorVacio.classList.remove('hidden');
+    dom.editorActivo.classList.add('hidden');
+    dom.inputTitulo.value = '';
+    dom.inputContenido.value = '';
   }
 
-  async function seleccionarNota(id) {
+  async function seleccionarNota(idNota) {
     try {
-      const nota = await api('GET', `/${id}`);
+      const nota = await peticion('GET', `/${idNota}`);
       mostrarEditor(nota);
-      const items = el.lista.querySelectorAll('[data-id]');
-      items.forEach(item => {
-        item.classList.toggle('bg-blue-50', parseInt(item.dataset.id) === id);
-        item.classList.toggle('border-l-4', parseInt(item.dataset.id) === id);
-        item.classList.toggle('border-l-blue-800', parseInt(item.dataset.id) === id);
+      const elementos = dom.lista.querySelectorAll('[data-id]');
+      elementos.forEach(item => {
+        item.classList.toggle('bg-blue-50', parseInt(item.dataset.id) === idNota);
+        item.classList.toggle('border-l-4', parseInt(item.dataset.id) === idNota);
+        item.classList.toggle('border-l-blue-800', parseInt(item.dataset.id) === idNota);
       });
     } catch (_) {
       alertas('error', 'Error al cargar la nota');
@@ -91,27 +91,27 @@
   }
 
   async function guardarNota() {
-    const titulo = el.inputTitulo.value.trim();
-    const contenido = el.inputContenido.value.trim();
+    const titulo = dom.inputTitulo.value.trim();
+    const contenido = dom.inputContenido.value.trim();
     if (!titulo) {
       alertas('warning', 'La nota debe tener un título');
       return;
     }
 
     try {
-      if (notaActualId) {
-        await api('PUT', `/${notaActualId}`, { titulo, contenido });
+      if (idNotaActual) {
+        await peticion('PUT', `/${idNotaActual}`, { titulo, contenido });
         alertas('success', 'Nota guardada');
       } else {
-        const nota = await api('POST', '', { titulo, contenido });
-        notaActualId = nota.id;
+        const nota = await peticion('POST', '', { titulo, contenido });
+        idNotaActual = nota.id;
         alertas('success', 'Nota creada');
       }
       await cargarNotas();
-      if (notaActualId) {
-        const items = el.lista.querySelectorAll('[data-id]');
-        items.forEach(item => {
-          if (parseInt(item.dataset.id) === notaActualId) {
+      if (idNotaActual) {
+        const elementos = dom.lista.querySelectorAll('[data-id]');
+        elementos.forEach(item => {
+          if (parseInt(item.dataset.id) === idNotaActual) {
             item.classList.add('bg-blue-50', 'border-l-4', 'border-l-blue-800');
           }
         });
@@ -122,9 +122,9 @@
   }
 
   async function eliminarNota() {
-    if (!notaActualId) return;
+    if (!idNotaActual) return;
     try {
-      await api('DELETE', `/${notaActualId}`);
+      await peticion('DELETE', `/${idNotaActual}`);
       limpiarEditor();
       await cargarNotas();
       alertas('success', 'Nota eliminada');
@@ -135,30 +135,30 @@
 
   async function cargarNotas() {
     try {
-      const notas = await api('GET', '');
+      const notas = await peticion('GET', '');
       renderizarLista(notas);
     } catch (_) {
-      el.lista.innerHTML = '<div class="p-4 text-center text-red-400 text-sm">Error al conectar con el servidor</div>';
+      dom.lista.innerHTML = '<div class="p-4 text-center text-red-400 text-sm">Error al conectar con el servidor</div>';
     }
   }
 
   function nuevaNota() {
     limpiarEditor();
-    el.editorVacio.classList.add('hidden');
-    el.editorActivo.classList.remove('hidden');
-    el.inputTitulo.focus();
-    el.lista.querySelectorAll('[data-id]').forEach(item => {
+    dom.editorVacio.classList.add('hidden');
+    dom.editorActivo.classList.remove('hidden');
+    dom.inputTitulo.focus();
+    dom.lista.querySelectorAll('[data-id]').forEach(item => {
       item.classList.remove('bg-blue-50', 'border-l-4', 'border-l-blue-800');
     });
   }
 
-  el.btnNueva.addEventListener('click', nuevaNota);
-  el.btnGuardar.addEventListener('click', guardarNota);
-  el.btnEliminar.addEventListener('click', eliminarNota);
+  dom.btnNueva.addEventListener('click', nuevaNota);
+  dom.btnGuardar.addEventListener('click', guardarNota);
+  dom.btnEliminar.addEventListener('click', eliminarNota);
 
-  document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-      e.preventDefault();
+  document.addEventListener('keydown', (evento) => {
+    if ((evento.ctrlKey || evento.metaKey) && evento.key === 's') {
+      evento.preventDefault();
       guardarNota();
     }
   });

@@ -18,20 +18,20 @@ public class Nota {
     private String contenido;
 
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private LocalDateTime creadoEn;
 
     @Column(nullable = false)
-    private LocalDateTime updatedAt;
+    private LocalDateTime actualizadoEn;
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = createdAt;
+        creadoEn = LocalDateTime.now();
+        actualizadoEn = creadoEn;
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        actualizadoEn = LocalDateTime.now();
     }
 
     public Long getId() { return id; }
@@ -43,6 +43,6 @@ public class Nota {
     public String getContenido() { return contenido; }
     public void setContenido(String contenido) { this.contenido = contenido; }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public LocalDateTime getCreadoEn() { return creadoEn; }
+    public LocalDateTime getActualizadoEn() { return actualizadoEn; }
 }

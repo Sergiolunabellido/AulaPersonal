@@ -2,77 +2,77 @@ const {app, BrowserWindow, ipcMain} = require('electron');
 const path = require('path');
 const { execFile, spawn } = require('child_process');
 
-const isWin = process.platform === 'win32';
-const isLinux = process.platform === 'linux';
+const esWindows = process.platform === 'win32';
+const esLinux = process.platform === 'linux';
 
 let intervaloBloqueo = null;
-let backendProcess = null;
+let procesoBackend = null;
 
-function getJavaExe() {
+function obtenerJavaEjecutable() {
   if (app.isPackaged) {
-    const jreBin = path.join(process.resourcesPath, 'jre', 'bin');
-    return path.join(jreBin, isWin ? 'java.exe' : 'java');
+    const rutaJre = path.join(process.resourcesPath, 'jre', 'bin');
+    return path.join(rutaJre, esWindows ? 'java.exe' : 'java');
   }
   return 'java';
 }
 
-function getJarPath() {
-  const jarName = 'AulaPersonal-0.0.1-SNAPSHOT.jar';
+function obtenerRutaJar() {
+  const nombreJar = 'AulaPersonal-0.0.1-SNAPSHOT.jar';
   if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'backend', jarName);
+    return path.join(process.resourcesPath, 'backend', nombreJar);
   }
-  return path.join(__dirname, '..', 'build', 'libs', jarName);
+  return path.join(__dirname, '..', 'build', 'libs', nombreJar);
 }
 
-function killProcess(nombre) {
-  if (isWin) {
+function matarProceso(nombre) {
+  if (esWindows) {
     execFile('taskkill', ['/F', '/IM', `${nombre}.exe`, '/T'], { windowsHide: true }, () => {});
   } else {
     execFile('pkill', ['-f', nombre], () => {});
   }
 }
 
-async function startBackend() {
-  const javaExe = getJavaExe();
-  const jarPath = getJarPath();
-  const userDataPath = app.getPath('userData');
+async function iniciarBackend() {
+  const javaExe = obtenerJavaEjecutable();
+  const rutaJar = obtenerRutaJar();
+  const rutaDatosUsuario = app.getPath('userData');
 
-  backendProcess = spawn(javaExe, ['-jar', jarPath], {
+  procesoBackend = spawn(javaExe, ['-jar', rutaJar], {
     env: {
       ...process.env,
-      APP_DATA_DIR: userDataPath,
+      APP_DATA_DIR: rutaDatosUsuario,
     },
     stdio: 'ignore',
   });
 
-  backendProcess.on('error', (err) => {
+  procesoBackend.on('error', (err) => {
     console.error('Backend start error:', err.message);
   });
 
-  await waitForBackend();
+  await esperarBackend();
 }
 
-function waitForBackend() {
+function esperarBackend() {
   return new Promise((resolve) => {
     const http = require('http');
-    let attempts = 0;
+    let intentos = 0;
 
-    function check() {
-      attempts++;
+    function comprobar() {
+      intentos++;
       const req = http.get('http://localhost:8080/api/notas', () => {
         resolve();
       });
       req.on('error', () => {
-        if (attempts >= 30) {
+        if (intentos >= 30) {
           resolve();
         } else {
-          setTimeout(check, 1000);
+          setTimeout(comprobar, 1000);
         }
       });
       req.end();
     }
 
-    check();
+    comprobar();
   });
 }
 
@@ -89,7 +89,7 @@ function crearVentana() {
 
   ventana.loadFile('electron/renderer/index.html');
 
-  if (isLinux) {
+  if (esLinux) {
     ventana.setIcon(path.join(__dirname, 'renderer', 'assets', 'imagenes', 'mobile_profile.svg'));
   }
 }
@@ -120,7 +120,7 @@ ipcMain.handle('bloquear-apps', (_event, nombresApps, minutos) => {
       return;
     }
     for (const nombre of nombresApps) {
-      killProcess(nombre);
+      matarProceso(nombre);
     }
   }, 2000);
 
@@ -136,14 +136,14 @@ ipcMain.handle('desbloquear-todo', () => {
 });
 
 app.whenReady().then(async () => {
-  await startBackend();
+  await iniciarBackend();
   crearVentana();
 });
 
 app.on('will-quit', () => {
-  if (backendProcess) {
-    backendProcess.kill();
-    backendProcess = null;
+  if (procesoBackend) {
+    procesoBackend.kill();
+    procesoBackend = null;
   }
 });
 

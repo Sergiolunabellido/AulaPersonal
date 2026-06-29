@@ -6,7 +6,7 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
-public class CorsConfig {
+public class ConfiguracionCors {
 
     @Bean
     public WebMvcConfigurer corsConfigurer() {
@@ -17,7 +17,7 @@ public class CorsConfig {
                         .allowedOrigins("file://", "http://localhost")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
-                        .allowCredentials(false);
+                        .allowCredentials(true);
             }
         };
     }
