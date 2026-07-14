@@ -6,7 +6,7 @@ function cargarPagina(evento, pagina) {
         bienvenida: 'welcome/welcome.html',
         bloqueoApps: 'AppBlocker/appBlocker.html',
         pomodoro: 'Pomodoro/pomodoro.html',
-        chatIA: '',
+        chatIA: 'chatAI/chat.html',
         musica: '',
         notas: 'notes/notes.html',
     };
@@ -41,27 +41,100 @@ function cargarPagina(evento, pagina) {
 // Cargar la página de bienvenida al iniciar la aplicación
 document.addEventListener('DOMContentLoaded', () => cargarPagina(null, 'bienvenida'));
 
-function alertas(tipo, mensaje) {
-    const overlay = document.getElementById('modal-overlay');
-    const icono = document.getElementById('modal-icono');
-    const texto = document.getElementById('modal-mensaje');
-    const boton = document.getElementById('modal-boton');
+const coloresModal = {
+    info:    { color: 'bg-blue-500', hover: 'hover:bg-blue-600', icono: 'ℹ️' },
+    warning: { color: 'bg-yellow-500', hover: 'hover:bg-yellow-600', icono: '⚠️' },
+    success: { color: 'bg-green-500', hover: 'hover:bg-green-600', icono: '✅' },
+    error:   { color: 'bg-red-500', hover: 'hover:bg-red-600', icono: '❌' },
+};
 
-    const colores = {
-        info:    { color: 'bg-blue-500', hover: 'hover:bg-blue-600', icono: 'ℹ️' },
-        warning: { color: 'bg-yellow-500', hover: 'hover:bg-yellow-600', icono: '⚠️' },
-        success: { color: 'bg-green-500', hover: 'hover:bg-green-600', icono: '✅' },
-        error:   { color: 'bg-red-500', hover: 'hover:bg-red-600', icono: '❌' },
+let modalResolver = null;
+let modalEsConfirmacion = false;
+
+function obtenerElementosModal() {
+    return {
+        overlay: document.getElementById('modal-overlay'),
+        titulo: document.getElementById('modal-titulo'),
+        icono: document.getElementById('modal-icono'),
+        texto: document.getElementById('modal-mensaje'),
+        boton: document.getElementById('modal-boton'),
+        cancelar: document.getElementById('modal-boton-cancelar'),
     };
-
-    const c = colores[tipo] || colores.info;
-
-    texto.textContent = mensaje;
-    icono.textContent = c.icono;
-    boton.className = `px-4 py-2 text-white rounded-md transition-colors duration-200 ${c.color} ${c.hover}`;
-    overlay.classList.remove('hidden');
 }
 
-function cerrarModal() {
-    document.getElementById('modal-overlay').classList.add('hidden');
+function restablecerModal() {
+    const modal = obtenerElementosModal();
+    if (!modal.overlay) return;
+
+    modalEsConfirmacion = false;
+    modalResolver = null;
+    modal.titulo.classList.add('hidden');
+    modal.cancelar.classList.add('hidden');
+    modal.boton.textContent = 'Aceptar';
+    modal.boton.onclick = () => cerrarModal(true);
+    modal.cancelar.onclick = () => cerrarModal(false);
+}
+
+function cerrarModal(resultado) {
+    const modal = obtenerElementosModal();
+    if (!modal.overlay) return;
+
+    modal.overlay.classList.add('hidden');
+
+    if (modalResolver) {
+        const resolver = modalResolver;
+        modalResolver = null;
+        resolver(!!resultado);
+    }
+
+    restablecerModal();
+}
+
+function cerrarModalOverlay() {
+    cerrarModal(modalEsConfirmacion ? false : true);
+}
+
+function alertas(tipo, mensaje) {
+    const modal = obtenerElementosModal();
+    if (!modal.overlay) return;
+
+    const c = coloresModal[tipo] || coloresModal.info;
+
+    modal.titulo.classList.add('hidden');
+    modal.cancelar.classList.add('hidden');
+    modal.texto.textContent = mensaje;
+    modal.icono.textContent = c.icono;
+    modal.boton.textContent = 'Aceptar';
+    modal.boton.className = `px-4 py-2 text-white rounded-md transition-colors duration-200 ${c.color} ${c.hover}`;
+    modal.boton.onclick = () => cerrarModal(true);
+    modalEsConfirmacion = false;
+    modal.overlay.classList.remove('hidden');
+}
+
+function confirmarModal(mensaje, opciones = {}) {
+    const modal = obtenerElementosModal();
+    if (!modal.overlay) return Promise.resolve(false);
+
+    const tipo = opciones.tipo || 'warning';
+    const c = coloresModal[tipo] || coloresModal.warning;
+
+    return new Promise((resolve) => {
+        modalEsConfirmacion = true;
+        modalResolver = resolve;
+
+        modal.titulo.textContent = opciones.titulo || 'Confirmar acción';
+        modal.titulo.classList.remove('hidden');
+        modal.texto.textContent = mensaje;
+        modal.icono.textContent = c.icono;
+
+        modal.cancelar.textContent = opciones.cancelar || 'Cancelar';
+        modal.cancelar.classList.remove('hidden');
+        modal.cancelar.onclick = () => cerrarModal(false);
+
+        modal.boton.textContent = opciones.confirmar || 'Confirmar';
+        modal.boton.className = `px-4 py-2 text-white rounded-md transition-colors duration-200 ${c.color} ${c.hover}`;
+        modal.boton.onclick = () => cerrarModal(true);
+
+        modal.overlay.classList.remove('hidden');
+    });
 }

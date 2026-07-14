@@ -1,12 +1,15 @@
-const {app, BrowserWindow, ipcMain} = require('electron');
+const {app, BrowserWindow, ipcMain, safeStorage} = require('electron');
 const path = require('path');
 const { execFile, spawn } = require('child_process');
+const { iniciarOllama, detenerOllama, obtenerEstadoOllama } = require('./ollamaManager');
+const { ejecutarSetupInicial, obtenerEstadoSetup } = require('./ollamaSetup');
 
 const esWindows = process.platform === 'win32';
 const esLinux = process.platform === 'linux';
 
 let intervaloBloqueo = null;
 let procesoBackend = null;
+let ventanaPrincipal = null;
 
 function obtenerJavaEjecutable() {
   if (app.isPackaged) {
@@ -77,7 +80,7 @@ function esperarBackend() {
 }
 
 function crearVentana() {
-  const ventana = new BrowserWindow({
+  ventanaPrincipal = new BrowserWindow({
     width: 1000,
     height: 700,
     webPreferences: {
@@ -87,10 +90,10 @@ function crearVentana() {
     },
   });
 
-  ventana.loadFile('electron/renderer/index.html');
+  ventanaPrincipal.loadFile('electron/renderer/index.html');
 
   if (esLinux) {
-    ventana.setIcon(path.join(__dirname, 'renderer', 'assets', 'imagenes', 'mobile_profile.svg'));
+    ventanaPrincipal.setIcon(path.join(__dirname, 'renderer', 'assets', 'imagenes', 'mobile_profile.svg'));
   }
 }
 
@@ -105,6 +108,38 @@ async function obtenerIcono(ruta) {
 
 ipcMain.handle('obtener-icono', async (_event, ruta) => {
   return await obtenerIcono(ruta);
+});
+
+ipcMain.handle('ollama-status', async () => {
+  return obtenerEstadoOllama();
+});
+
+ipcMain.handle('ollama-setup-status', () => {
+  return obtenerEstadoSetup();
+});
+
+ipcMain.handle('guardar-api-key', (_event, provider, key) => {
+  if (!safeStorage.isEncryptionAvailable()) {
+    return { ok: false, error: 'encryption_unavailable' };
+  }
+  try {
+    const encrypted = safeStorage.encryptString(key);
+    return { ok: true, data: encrypted.toString('base64') };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('obtener-api-key', (_event, encryptedBase64) => {
+  if (!safeStorage.isEncryptionAvailable() || !encryptedBase64) {
+    return { ok: false, value: '' };
+  }
+  try {
+    const buffer = Buffer.from(encryptedBase64, 'base64');
+    return { ok: true, value: safeStorage.decryptString(buffer) };
+  } catch (err) {
+    return { ok: false, error: err.message, value: '' };
+  }
 });
 
 ipcMain.handle('bloquear-apps', (_event, nombresApps, minutos) => {
@@ -136,11 +171,16 @@ ipcMain.handle('desbloquear-todo', () => {
 });
 
 app.whenReady().then(async () => {
+  await iniciarOllama();
   await iniciarBackend();
   crearVentana();
+  ejecutarSetupInicial().catch((err) => {
+    console.error('Ollama setup error:', err.message);
+  });
 });
 
 app.on('will-quit', () => {
+  detenerOllama();
   if (procesoBackend) {
     procesoBackend.kill();
     procesoBackend = null;

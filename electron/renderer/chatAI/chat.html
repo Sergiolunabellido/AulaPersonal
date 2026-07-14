@@ -1,1 +1,190 @@
-<h1>Esta es la pagina del chat con ia</h1>
+<div id="chat-app" class="relative flex h-[calc(100vh-2rem)] -m-4 bg-gray-50 overflow-hidden">
+
+  <!-- Contenido del chat (visible pero deshabilitado durante la descarga) -->
+  <div id="chat-contenido" class="flex flex-1 min-w-0 transition-opacity duration-300">
+
+    <!-- Barra lateral de historial -->
+    <aside id="chat-sidebar"
+      class="h-full w-72 bg-white border-r border-gray-200 flex flex-col shrink-0">
+
+      <div class="p-4 border-b border-gray-100">
+        <h2 class="font-semibold text-gray-800">Historial</h2>
+      </div>
+
+      <div class="p-3">
+        <button type="button" onclick="window.nuevaSesion()"
+          class="w-full py-2.5 px-4 bg-blue-800 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          Nueva conversación
+        </button>
+      </div>
+
+      <div id="chat-historial" class="flex-1 overflow-y-auto px-3 pb-3 space-y-1">
+        <p class="text-sm text-gray-400 text-center py-8">Cargando historial…</p>
+      </div>
+    </aside>
+
+    <!-- Área principal del chat -->
+    <main class="flex-1 flex flex-col min-w-0 bg-white">
+
+      <!-- Cabecera -->
+      <header class="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white shrink-0">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-semibold text-gray-800 truncate">AI Chat</h1>
+            <span id="ollama-status-badge" class="hidden text-xs px-2 py-0.5 rounded-full font-medium"></span>
+          </div>
+          <p id="chat-subtitulo" class="text-xs text-gray-400 truncate">Selecciona un modelo y empieza a chatear</p>
+        </div>
+        <button type="button" onclick="window.nuevaSesion()"
+          class="hidden sm:flex items-center gap-1.5 px-3 py-2 text-sm text-blue-800 hover:bg-blue-50 rounded-xl transition-colors font-medium">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          Nueva
+        </button>
+      </header>
+
+      <!-- Mensajes -->
+      <div id="chat-mensajes" class="flex-1 overflow-y-auto px-4 py-6">
+        <div id="chat-empty-state" class="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto">
+          <div class="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-blue-600"><path d="M6 6a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -4"/><path d="M12 2v2"/><path d="M9 12v9"/><path d="M15 12v9"/><path d="M5 16l4 -2"/><path d="M15 14l4 2"/><path d="M9 18h6"/></svg>
+          </div>
+          <h2 class="text-xl font-semibold text-gray-800 mb-2">¿En qué puedo ayudarte?</h2>
+          <p class="text-sm text-gray-400 leading-relaxed">Elige Auto o un modelo Qwen2.5 Coder local (Ollama) para programar. Los modelos de pago requieren tu propia API key.</p>
+        </div>
+      </div>
+
+      <!-- Composer: modelo + API key + textarea -->
+      <div class="border-t border-gray-100 bg-gray-50/80 px-4 py-4 shrink-0">
+        <div class="max-w-3xl mx-auto space-y-3">
+
+          <!-- Panel API Key (visible solo con modelos de pago) -->
+          <div id="panel-api-key" class="hidden bg-white border border-amber-200 rounded-xl p-3 shadow-sm">
+            <div class="flex items-start gap-3">
+              <div class="p-2 bg-amber-50 rounded-lg shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-amber-600"><path d="M16 3.937a9 9 0 1 0 5 8.063"/><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></svg>
+              </div>
+              <div class="flex-1 space-y-2 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-sm font-medium text-gray-700">API Key requerida</p>
+                  <button type="button" onclick="window.togglePanelApiKey()" class="text-xs text-gray-400 hover:text-gray-600">Ocultar</button>
+                </div>
+                <p id="api-key-descripcion" class="text-xs text-gray-500">Introduce tu clave para conectar con el proveedor del modelo.</p>
+                <div class="flex gap-2">
+                  <input id="input-api-key" type="password" autocomplete="off"
+                    class="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                    placeholder="sk-...">
+                  <button type="button" onclick="window.guardarApiKey()"
+                    class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors shrink-0">
+                    Guardar
+                  </button>
+                  <button type="button" onclick="window.validarApiKey()"
+                    class="px-3 py-2 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors shrink-0">
+                    Validar
+                  </button>
+                </div>
+                <div id="custom-model-fields" class="hidden space-y-2 pt-1">
+                  <input id="input-custom-model" type="text"
+                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder="Nombre del modelo (ej. gpt-4o)">
+                  <input id="input-custom-endpoint" type="text"
+                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder="Endpoint OpenAI-compatible (https://...)">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Caja de escritura -->
+          <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-visible focus-within:ring-2 focus-within:ring-blue-400/40 focus-within:border-blue-300 transition-all">
+
+            <!-- Barra de herramientas del composer -->
+            <div class="flex items-center gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50/50 relative">
+              <div class="relative">
+                <button type="button" id="btn-selector-modelo" onclick="window.toggleSelectorModelo()"
+                  class="flex items-center gap-2 px-3 py-1.5 text-sm bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50/50 transition-colors max-w-[220px]">
+                  <span id="modelo-badge" class="w-2 h-2 rounded-full bg-green-500 shrink-0"></span>
+                  <span id="modelo-label" class="truncate text-gray-700 font-medium">Cargando modelos…</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-400 shrink-0"><path d="M6 9l6 6l6 -6"/></svg>
+                </button>
+
+                <div id="dropdown-modelos"
+                  class="hidden absolute bottom-full left-0 mb-2 w-80 max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl z-50">
+                  <div class="p-2 border-b border-gray-100">
+                    <input id="buscar-modelo" type="text" placeholder="Buscar modelo…"
+                      class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      oninput="window.filtrarModelos(this.value)">
+                  </div>
+                  <div id="lista-modelos-auto" class="p-2 border-b border-gray-100">
+                    <p class="px-2 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">Recomendado</p>
+                  </div>
+                  <div id="lista-modelos-gratuitos" class="p-2">
+                    <p class="px-2 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">Gratuitos · Código · Ollama</p>
+                  </div>
+                  <div id="lista-modelos-pago" class="p-2 border-t border-gray-100">
+                    <p class="px-2 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">De pago · API</p>
+                  </div>
+                  <div id="modelos-vacio" class="hidden p-4 text-center text-sm text-gray-400">No se encontraron modelos</div>
+                </div>
+              </div>
+
+              <div id="contexto-indicador" class="flex items-center gap-2 px-2 py-1 rounded-lg bg-white border border-gray-200 shrink-0" title="Uso de contexto de la conversación">
+                <span id="contexto-label" class="text-xs text-gray-500 whitespace-nowrap">0 / 8K</span>
+                <svg id="contexto-ring" width="18" height="18" viewBox="0 0 20 20" class="-rotate-90 shrink-0" aria-hidden="true">
+                  <circle cx="10" cy="10" r="8" fill="none" stroke="#e5e7eb" stroke-width="2.5"></circle>
+                  <circle id="contexto-ring-progreso" cx="10" cy="10" r="8" fill="none" stroke="#3b82f6" stroke-width="2.5"
+                    stroke-linecap="round" stroke-dasharray="50.27" stroke-dashoffset="50.27"></circle>
+                </svg>
+              </div>
+
+              <button type="button" id="btn-api-key" onclick="window.togglePanelApiKey()"
+                class="hidden items-center gap-1.5 px-3 py-1.5 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3.937a9 9 0 1 0 5 8.063"/><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></svg>
+                API Key
+              </button>
+
+              <button type="button" onclick="window.recargarModelos()"
+                class="ml-auto p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="Actualizar modelos">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></svg>
+              </button>
+            </div>
+
+            <div class="flex gap-2 p-3 items-end">
+              <textarea id="chat-input" rows="1"
+                class="flex-1 resize-none text-sm text-gray-800 placeholder-gray-400 bg-transparent outline-none max-h-40 leading-relaxed"
+                placeholder="Escribe tu mensaje… (Enter para enviar, Shift+Enter nueva línea)"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();window.enviarMensaje()}"
+                oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,160)+'px'"></textarea>
+              <button type="button" id="btn-enviar" onclick="window.enviarMensaje()"
+                class="p-2.5 bg-blue-800 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl transition-colors shrink-0"
+                title="Enviar">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5l0 14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <p class="text-center text-xs text-gray-400">Modelos gratuitos: Qwen2.5 Coder vía Ollama (optimizados para código). Los de pago requieren API key.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Overlay: bloquea el chat mientras se descargan los modelos -->
+  <div id="chat-setup-overlay" class="hidden absolute inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-[2px]">
+    <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 max-w-md w-full mx-4 text-center">
+      <div class="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-blue-600 animate-pulse"><path d="M12 3a9 9 0 0 1 9 9"/><path d="M12 12l4 -2"/></svg>
+      </div>
+      <h2 class="text-lg font-semibold text-gray-800 mb-2">Preparando modelos de programación</h2>
+      <p id="ollama-setup-text" class="text-sm text-gray-500 mb-5 leading-relaxed">
+        Descargando Qwen2.5 Coder (modelos locales para código). La primera vez puede tardar unos minutos.
+      </p>
+      <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden mb-2">
+        <div id="ollama-setup-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+      </div>
+      <p id="ollama-setup-pct" class="text-sm font-medium text-blue-700">0%</p>
+    </div>
+  </div>
+</div>
+
+<script src="./chatAI/functionChat.js"></script>

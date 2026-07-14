@@ -4,11 +4,12 @@
   "version": "1.0.0",
   "description": "Aula Personal - Productivity Suite",
   "scripts": {
-    "start": "electron .",
+    "start": "node scripts/start-dev.js",
     "build:backend": "node scripts/build-backend.js",
-    "build": "npm run build:backend && npx electron-builder",
-    "build:linux": "npm run build:backend && npx electron-builder --linux dir",
-    "build:win": "npm run build:backend && npx electron-builder --win",
+    "build:ollama": "node scripts/build-ollama.js",
+    "build": "npm run build:backend && npm run build:ollama && npx electron-builder",
+    "build:linux": "npm run build:backend && npm run build:ollama && npx electron-builder --linux dir",
+    "build:win": "npm run build:backend && npm run build:ollama && npx electron-builder --win",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -38,6 +39,10 @@
       {
         "from": "build/jre",
         "to": "jre"
+      },
+      {
+        "from": "build/ollama",
+        "to": "ollama"
       }
     ],
     "win": {
