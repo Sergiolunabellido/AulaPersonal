@@ -7,7 +7,7 @@ function cargarPagina(evento, pagina) {
         bloqueoApps: 'AppBlocker/appBlocker.html',
         pomodoro: 'Pomodoro/pomodoro.html',
         chatIA: 'chatAI/chat.html',
-        musica: '',
+        musica: 'music/music.html',
         notas: 'notes/notes.html',
     };
 
