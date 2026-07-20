@@ -40,7 +40,11 @@
     window.toggleMute = function () {
         player.isMuted = !player.isMuted;
         player.audio.muted = player.isMuted;
-        $('btn-mute').textContent = player.isMuted ? '🔇' : (player.volume > 0 ? '🔊' : '🔈');
+        const icon = player.isMuted ? '🔇' : (player.volume > 0 ? '🔊' : '🔈');
+        const muteDesktop = $('btn-mute');
+        const muteMobile = $('btn-mute-mobile');
+        if (muteDesktop) muteDesktop.textContent = icon;
+        if (muteMobile) muteMobile.textContent = icon;
     };
 
     window.ajustarVolumen = function (val) {
@@ -135,8 +139,12 @@
     }
 
     function actualizarNowPlaying(source) {
-        $('player-title').textContent = source.titulo || source.nombre || 'Sin título';
-        $('player-artist').textContent = source.artista || source.genero || '';
+        const titulo = source.titulo || source.nombre || 'Sin título';
+        const artista = source.artista || source.genero || '';
+        $('player-title').textContent = titulo;
+        $('player-artist').textContent = artista;
+        const mobileTitle = $('player-title-mobile');
+        if (mobileTitle) mobileTitle.textContent = titulo + (artista ? ' — ' + artista : '');
         $('player-now-icon').textContent = source.type === 'radio' ? '📻' : '🎵';
     }
 
@@ -169,14 +177,28 @@
     window.cambiarTab = function (tab) {
         currentTab = tab;
         document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        // Desktop tabs
         document.querySelectorAll('.tab-btn').forEach(el => {
             el.classList.remove('bg-purple-100', 'text-purple-700');
             el.classList.add('text-gray-600', 'hover:bg-gray-100');
         });
+        // Mobile tabs
+        document.querySelectorAll('.tab-btn-mobile').forEach(el => {
+            el.classList.remove('bg-purple-100', 'text-purple-700', 'border-b-2', 'border-purple-700');
+            el.classList.add('text-gray-500');
+        });
         $('content-' + tab).classList.remove('hidden');
+
         const tabBtn = $('tab-' + tab);
-        tabBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-        tabBtn.classList.add('bg-purple-100', 'text-purple-700');
+        if (tabBtn) {
+            tabBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+            tabBtn.classList.add('bg-purple-100', 'text-purple-700');
+        }
+        const tabBtnMobile = $('tab-' + tab + '-mobile');
+        if (tabBtnMobile) {
+            tabBtnMobile.classList.remove('text-gray-500');
+            tabBtnMobile.classList.add('bg-purple-100', 'text-purple-700', 'border-b-2', 'border-purple-700');
+        }
 
         if (tab === 'radios') cargarRadios();
         else if (tab === 'playlists') cargarPlaylists();
