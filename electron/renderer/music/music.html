@@ -1,0 +1,88 @@
+<div id="music-app" class="flex flex-col h-[calc(100vh-2rem)]">
+  <!-- Main area: sidebar + content -->
+  <div class="flex flex-1 overflow-hidden">
+    <!-- Left sidebar -->
+    <div class="w-56 bg-gray-50 border-r border-gray-200 flex flex-col shrink-0">
+      <div class="p-3 border-b border-gray-200">
+        <h2 class="text-lg font-bold text-gray-800">Music</h2>
+      </div>
+      <nav class="flex-1 p-2 space-y-1">
+        <button id="tab-radios" class="tab-btn w-full text-left px-3 py-2 rounded-lg text-sm font-medium bg-purple-100 text-purple-700" onclick="window.cambiarTab('radios')">
+          📻 Radios
+        </button>
+        <button id="tab-playlists" class="tab-btn w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100" onclick="window.cambiarTab('playlists')">
+          💿 Mis Listas
+        </button>
+        <button id="tab-local" class="tab-btn w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100" onclick="window.cambiarTab('local')">
+          📁 Archivo Local
+        </button>
+      </nav>
+    </div>
+
+    <!-- Content area -->
+    <div class="flex-1 flex flex-col overflow-hidden bg-white">
+      <!-- Radios tab -->
+      <div id="content-radios" class="tab-content flex-1 overflow-y-auto p-4">
+        <div class="flex gap-2 mb-4 flex-wrap">
+          <button class="genero-btn px-3 py-1.5 rounded-full text-sm font-medium bg-purple-600 text-white" data-genero="all" onclick="window.filtrarRadios('all', this)">Todos</button>
+          <button class="genero-btn px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-genero="Rock" onclick="window.filtrarRadios('Rock', this)">🎸 Rock</button>
+          <button class="genero-btn px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-genero="Lo-Fi" onclick="window.filtrarRadios('Lo-Fi', this)">🎹 Lo-Fi</button>
+          <button class="genero-btn px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-genero="Pop" onclick="window.filtrarRadios('Pop', this)">🕺 Pop</button>
+          <button class="genero-btn px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-genero="Jazz" onclick="window.filtrarRadios('Jazz', this)">🎷 Jazz</button>
+          <button class="genero-btn px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-genero="Electronic" onclick="window.filtrarRadios('Electronic', this)">⚡ Electrónica</button>
+          <button class="genero-btn px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-genero="Latino" onclick="window.filtrarRadios('Latino', this)">🎤 Latino</button>
+          <button class="genero-btn px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-genero="Classical" onclick="window.filtrarRadios('Classical', this)">🎵 Clásica</button>
+        </div>
+        <div id="radio-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+      </div>
+
+      <!-- Playlists tab -->
+      <div id="content-playlists" class="tab-content hidden flex-1 overflow-y-auto p-4">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-800">Mis Listas</h3>
+          <button onclick="window.crearPlaylist()" class="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors">+ Nueva Lista</button>
+        </div>
+        <div id="playlists-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+      </div>
+
+      <!-- Local music tab -->
+      <div id="content-local" class="tab-content hidden flex-1 overflow-y-auto p-4">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-800">Archivo Local</h3>
+          <button onclick="window.seleccionarCarpeta()" class="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors">+ Añadir carpeta</button>
+        </div>
+        <div id="carpetas-lista" class="space-y-2 mb-4"></div>
+        <div id="local-songs" class="space-y-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player bar (fixed bottom) -->
+  <div id="player-bar" class="bg-gray-900 text-white px-4 py-3 flex items-center gap-4 shrink-0">
+    <div class="flex items-center gap-3 min-w-[180px]">
+      <div id="player-now-icon" class="w-10 h-10 bg-gray-700 rounded flex items-center justify-center text-lg shrink-0">🎵</div>
+      <div class="min-w-0">
+        <div id="player-title" class="text-sm font-medium truncate">Sin reproducción</div>
+        <div id="player-artist" class="text-xs text-gray-400 truncate">Selecciona una radio o canción</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3 ml-auto">
+      <button id="btn-shuffle" class="text-gray-400 hover:text-white transition-colors text-lg opacity-40" onclick="window.toggleShuffle()">🔀</button>
+      <button id="btn-prev" class="text-gray-400 hover:text-white transition-colors text-lg" onclick="window.anteriorCancion()">⏮️</button>
+      <button id="btn-play" class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center hover:bg-purple-500 transition-colors text-lg" onclick="window.togglePlay()">▶️</button>
+      <button id="btn-next" class="text-gray-400 hover:text-white transition-colors text-lg" onclick="window.siguienteCancion()">⏭️</button>
+      <button id="btn-repeat" class="text-gray-400 hover:text-white transition-colors text-lg opacity-40" onclick="window.toggleRepeat()">🔁</button>
+    </div>
+    <div class="flex items-center gap-2 ml-4 min-w-[200px]">
+      <span id="player-current-time" class="text-xs text-gray-400 tabular-nums">0:00</span>
+      <input id="player-progress" type="range" min="0" max="100" value="0" class="w-full h-1 accent-purple-500 cursor-pointer" oninput="window.buscarEnCancion(this.value)">
+      <span id="player-duration" class="text-xs text-gray-400 tabular-nums">0:00</span>
+    </div>
+    <div class="flex items-center gap-2 ml-2">
+      <button id="btn-mute" class="text-gray-400 hover:text-white transition-colors text-sm" onclick="window.toggleMute()">🔊</button>
+      <input id="player-volume" type="range" min="0" max="1" step="0.05" value="0.8" class="w-20 h-1 accent-purple-500 cursor-pointer" oninput="window.ajustarVolumen(this.value)">
+    </div>
+  </div>
+</div>
+
+<script src="./music/music.js"></script>
