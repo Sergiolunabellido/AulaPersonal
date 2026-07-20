@@ -1,0 +1,30 @@
+# Aula Personal — Productivity Suite
+
+Aula Personal is a desktop productivity app for students and remote workers. It helps maintain focus by blocking distracting apps, managing Pomodoro study sessions, taking persistent notes, and providing AI chat capabilities.
+
+## Key Links
+- README: README.md
+- Documentation: DOCUMENTACION.md
+- Design Specs: docs/superpowers/specs/
+- Implementation Plans: docs/superpowers/plans/
+
+## Tech Stack
+- **Frontend**: Electron 42, Vanilla JavaScript, Tailwind CSS (CDN)
+- **Backend**: Spring Boot 4.0.6, Java 17, Gradle
+- **Database**: H2 embedded file-based (dev: MySQL)
+- **Build**: electron-builder (NSIS Windows / Linux dir)
+
+## Features
+- **App Blocker**: Kill distracting processes via taskkill/pkill with timer
+- **Pomodoro**: Configurable study/break sessions with sound alerts + auto-block
+- **Notes**: CRUD notes with Spring Boot REST API + JPA/H2 persistence
+- **AI Chat**: Chat interface supporting Ollama (local) and Custom API (OpenAI-compatible)
+
+## API Endpoints
+- `GET /api/notas` — list notes
+- `POST /api/notas` — create note
+- `PUT /api/notas/{id}` — update note
+- `DELETE /api/notas/{id}` — delete note
+- `GET /api/chat/sessions` — list chat sessions
+- `POST /api/chat/sessions` — create session
+- `POST /api/chat/sessions/{id}/messages` — send message + get AI response
