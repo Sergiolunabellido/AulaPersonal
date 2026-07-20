@@ -13,4 +13,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
     guardarApiKey: (provider, key) => ipcRenderer.invoke('guardar-api-key', provider, key),
     obtenerApiKey: (encryptedBase64) => ipcRenderer.invoke('obtener-api-key', encryptedBase64),
+    escogerCarpeta: () => ipcRenderer.invoke('escoger-carpeta'),
+    escanearCarpeta: (ruta) => ipcRenderer.invoke('escanear-carpeta', ruta),
 });

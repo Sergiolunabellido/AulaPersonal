@@ -1,5 +1,6 @@
-const {app, BrowserWindow, ipcMain, safeStorage} = require('electron');
+const {app, BrowserWindow, ipcMain, safeStorage, protocol, net, dialog} = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { execFile, spawn } = require('child_process');
 const { iniciarOllama, detenerOllama, obtenerEstadoOllama } = require('./ollamaManager');
 const { ejecutarSetupInicial, obtenerEstadoSetup } = require('./ollamaSetup');
@@ -170,12 +171,58 @@ ipcMain.handle('desbloquear-todo', () => {
   return true;
 });
 
+ipcMain.handle('escoger-carpeta', async () => {
+  const result = await dialog.showOpenDialog(ventanaPrincipal, {
+    properties: ['openDirectory']
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+
+ipcMain.handle('escanear-carpeta', async (_event, ruta) => {
+  const archivosMusica = [];
+  const extensiones = new Set(['.mp3', '.flac', '.wav', '.ogg', '.m4a', '.aac']);
+
+  function escanear(dir) {
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const rutaCompleta = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          escanear(rutaCompleta);
+        } else if (entry.isFile()) {
+          const ext = path.extname(entry.name).toLowerCase();
+          if (extensiones.has(ext)) {
+            archivosMusica.push({
+              ruta: rutaCompleta,
+              nombre: entry.name,
+              titulo: path.basename(entry.name, ext),
+              artista: '',
+              album: '',
+            });
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  escanear(ruta);
+  return archivosMusica;
+});
+
 app.whenReady().then(async () => {
   await iniciarOllama();
   await iniciarBackend();
   crearVentana();
   ejecutarSetupInicial().catch((err) => {
     console.error('Ollama setup error:', err.message);
+  });
+});
+
+app.on('ready', () => {
+  protocol.handle('local-audio', (request) => {
+    const filePath = decodeURIComponent(request.url.slice('local-audio://'.length));
+    return net.fetch('file:///' + filePath);
   });
 });
 
