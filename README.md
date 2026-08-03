@@ -187,3 +187,10 @@ AulaPersonal/
 ## 📄 Licencia
 
 ISC
+
+
+## Futuras Mejoras
+
+- Implementación de MCPs en el Chat con IA.
+- Implementación de Skills en el chat con IA.
+- Alojamiento de modelos gratuitos en nube para un uso mas rápido desde cualquier tipo de equipo.
