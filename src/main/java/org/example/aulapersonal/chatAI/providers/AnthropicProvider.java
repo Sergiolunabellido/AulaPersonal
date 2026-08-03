@@ -12,7 +12,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class AnthropicProvider implements AiProvider {
@@ -22,6 +25,66 @@ public class AnthropicProvider implements AiProvider {
     @Override
     public String getProviderId() {
         return "anthropic";
+    }
+
+    @Override
+    public List<Map<String, Object>> listarModelos(ChatRequestConfig config) throws Exception {
+        if (config.getApiKey() == null || config.getApiKey().isBlank()) {
+            return List.of();
+        }
+
+        String baseUrl = config.getEndpoint().replaceAll("/+$", "");
+        String url;
+        if (baseUrl.endsWith("/v1/models")) {
+            url = baseUrl;
+        } else if (baseUrl.endsWith("/v1")) {
+            url = baseUrl + "/models";
+        } else {
+            url = baseUrl + "/v1/models";
+        }
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("x-api-key", config.getApiKey())
+                .header("anthropic-version", "2023-06-01")
+                .GET()
+                .build();
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            throw new IllegalStateException(
+                    "Error listando modelos Anthropic (" + response.statusCode() + "): " + response.body()
+            );
+        }
+
+        JsonNode root = mapper.readTree(response.body());
+        JsonNode data = root.get("data");
+        if (data == null || !data.isArray()) {
+            return List.of();
+        }
+
+        List<Map<String, Object>> modelos = new ArrayList<>();
+        for (JsonNode item : data) {
+            String id = item.get("id") != null ? item.get("id").asText() : null;
+            if (!ModelListingSupport.esModeloChat(id)) {
+                continue;
+            }
+            String nombre = item.get("display_name") != null ? item.get("display_name").asText() : null;
+            if (nombre == null || nombre.isBlank()) {
+                nombre = ModelListingSupport.nombreBonito(id);
+            }
+            modelos.add(ModelListingSupport.modelo(
+                    id,
+                    nombre,
+                    getProviderId(),
+                    config.getEndpoint(),
+                    200_000
+            ));
+        }
+
+        modelos.sort(Comparator.comparing(m -> String.valueOf(m.get("nombre")), String.CASE_INSENSITIVE_ORDER));
+        return modelos;
     }
 
     @Override

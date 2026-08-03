@@ -10,6 +10,17 @@ import java.util.Map;
 @Component
 public class ModelCatalog {
 
+    public List<Map<String, Object>> listarProveedoresDePago() {
+        List<Map<String, Object>> proveedores = new ArrayList<>();
+        proveedores.add(proveedor("openai", "OpenAI", "https://api.openai.com/v1"));
+        proveedores.add(proveedor("anthropic", "Anthropic", "https://api.anthropic.com/v1"));
+        proveedores.add(proveedor("google", "Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai"));
+        proveedores.add(proveedor("mistral", "Mistral", "https://api.mistral.ai/v1"));
+        proveedores.add(proveedor("deepseek", "DeepSeek", "https://api.deepseek.com/v1"));
+        proveedores.add(proveedor("custom", "Personalizado", ""));
+        return proveedores;
+    }
+
     public List<Map<String, Object>> listarModelosDePago() {
         List<Map<String, Object>> modelos = new ArrayList<>();
 
@@ -36,8 +47,42 @@ public class ModelCatalog {
         return modelos;
     }
 
+    public List<Map<String, Object>> listarModelosFallbackPorProveedor(String provider) {
+        if (provider == null || provider.isBlank()) {
+            return List.of();
+        }
+        return listarModelosDePago().stream()
+                .filter(m -> provider.equals(String.valueOf(m.get("provider"))))
+                .toList();
+    }
+
+    public String endpointPorDefecto(String provider) {
+        return listarProveedoresDePago().stream()
+                .filter(p -> provider.equals(String.valueOf(p.get("id"))))
+                .map(p -> String.valueOf(p.get("endpoint")))
+                .findFirst()
+                .orElse("");
+    }
+
+    public String nombreProveedor(String provider) {
+        return listarProveedoresDePago().stream()
+                .filter(p -> provider.equals(String.valueOf(p.get("id"))))
+                .map(p -> String.valueOf(p.get("nombre")))
+                .findFirst()
+                .orElse(provider);
+    }
+
     public List<String> listarProveedores() {
         return List.of("ollama", "openai", "anthropic", "google", "mistral", "deepseek", "custom");
+    }
+
+    private Map<String, Object> proveedor(String id, String nombre, String endpoint) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", id);
+        map.put("nombre", nombre);
+        map.put("endpoint", endpoint);
+        map.put("requiereApiKey", true);
+        return map;
     }
 
     private Map<String, Object> modelo(String id, String nombre, String provider, String endpoint, int contextoMaximo) {

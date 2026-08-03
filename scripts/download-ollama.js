@@ -1,6 +1,6 @@
 /**
  * Descarga el binario de Ollama para empaquetarlo en extraResources.
- * Si la descarga falla, el modo desarrollo usará `ollama` del PATH del sistema.
+ * Si la descarga falla, aborta el build (exit 1) para no generar instaladores rotos.
  */
 const fs = require('fs');
 const path = require('path');
@@ -64,8 +64,8 @@ function extract(asset, archivePath) {
 async function main() {
   const asset = ASSETS[platform];
   if (!asset) {
-    console.warn(`Plataforma ${platform} no soportada para empaquetar Ollama. Se usará PATH en runtime.`);
-    process.exit(0);
+    console.error(`Plataforma ${platform} no soportada para empaquetar Ollama.`);
+    process.exit(1);
   }
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -81,6 +81,6 @@ async function main() {
 
 main().catch((err) => {
   console.error('download-ollama:', err.message);
-  console.warn('Continúa el build; en runtime se intentará usar ollama del PATH.');
-  process.exit(0);
+  console.error('No se puede continuar el build sin el binario de Ollama.');
+  process.exit(1);
 });

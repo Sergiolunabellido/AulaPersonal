@@ -11,7 +11,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 abstract class OpenAiCompatibleProvider implements AiProvider {
 
@@ -29,6 +32,68 @@ abstract class OpenAiCompatibleProvider implements AiProvider {
             return baseUrl + "/chat/completions";
         }
         return baseUrl + "/v1/chat/completions";
+    }
+
+    @Override
+    public List<Map<String, Object>> listarModelos(ChatRequestConfig config) throws Exception {
+        return listarModelosOpenAi(config);
+    }
+
+    protected List<Map<String, Object>> listarModelosOpenAi(ChatRequestConfig config) throws Exception {
+        if (config.getApiKey() == null || config.getApiKey().isBlank()) {
+            return List.of();
+        }
+
+        String url = ModelListingSupport.resolveModelsUrl(config.getEndpoint());
+        if (url.isBlank()) {
+            return List.of();
+        }
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Authorization", "Bearer " + config.getApiKey())
+                .GET()
+                .build();
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            throw new IllegalStateException(
+                    "Error listando modelos " + getProviderId() + " (" + response.statusCode() + "): " + response.body()
+            );
+        }
+
+        JsonNode root = mapper.readTree(response.body());
+        JsonNode data = root.get("data");
+        if (data == null || !data.isArray()) {
+            return List.of();
+        }
+
+        List<Map<String, Object>> modelos = new ArrayList<>();
+        for (JsonNode item : data) {
+            String id = textOrNull(item.get("id"));
+            if (!ModelListingSupport.esModeloChat(id)) {
+                continue;
+            }
+            String nombre = textOrNull(item.get("name"));
+            if (nombre == null || nombre.isBlank()) {
+                nombre = ModelListingSupport.nombreBonito(id);
+            }
+            modelos.add(ModelListingSupport.modelo(
+                    id,
+                    nombre,
+                    getProviderId(),
+                    config.getEndpoint(),
+                    128_000
+            ));
+        }
+
+        modelos.sort(Comparator.comparing(m -> String.valueOf(m.get("nombre")), String.CASE_INSENSITIVE_ORDER));
+        return modelos;
+    }
+
+    private static String textOrNull(JsonNode node) {
+        return node == null || node.isNull() ? null : node.asText();
     }
 
     protected String completarOpenAi(ChatRequestConfig config, List<Mensaje> historial) throws Exception {

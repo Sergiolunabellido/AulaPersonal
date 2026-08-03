@@ -154,11 +154,67 @@ public class ChatService {
     public Map<String, Object> listarModelos(String ollamaEndpoint) {
         String endpoint = (ollamaEndpoint != null && !ollamaEndpoint.isBlank()) ? ollamaEndpoint : ollamaBaseUrl;
         List<Map<String, Object>> gratuitos = obtenerModelosOllama(endpoint);
-        List<Map<String, Object>> dePago = modelCatalog.listarModelosDePago();
-        return Map.of(
-                "gratuitos", gratuitos,
-                "dePago", dePago
-        );
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("gratuitos", gratuitos);
+        result.put("dePago", modelCatalog.listarModelosDePago());
+        result.put("proveedoresDePago", modelCatalog.listarProveedoresDePago());
+        return result;
+    }
+
+    public Map<String, Object> listarModelosRemotos(String provider, String apiKey, String endpoint) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        String providerId = provider == null ? "" : provider.trim().toLowerCase();
+        result.put("provider", providerId);
+        result.put("ok", false);
+        result.put("modelos", List.of());
+        result.put("fuente", "ninguna");
+
+        if (providerId.isBlank() || "ollama".equals(providerId)) {
+            result.put("message", "Proveedor no válido para listado remoto");
+            return result;
+        }
+        if (apiKey == null || apiKey.isBlank()) {
+            result.put("message", "API key vacía");
+            return result;
+        }
+
+        String endpointFinal = (endpoint != null && !endpoint.isBlank())
+                ? endpoint
+                : modelCatalog.endpointPorDefecto(providerId);
+        if (endpointFinal == null || endpointFinal.isBlank()) {
+            endpointFinal = defaultEndpointForProvider(providerId);
+        }
+
+        try {
+            ChatRequestConfig config = ChatRequestConfig.of(
+                    providerId,
+                    defaultModelForProvider(providerId),
+                    apiKey,
+                    endpointFinal
+            );
+            AiProvider aiProvider = providerRegistry.resolve(providerId);
+            List<Map<String, Object>> modelos = aiProvider.listarModelos(config);
+            if (modelos == null || modelos.isEmpty()) {
+                modelos = modelCatalog.listarModelosFallbackPorProveedor(providerId);
+                result.put("fuente", "fallback");
+                result.put("message", "No se obtuvieron modelos remotos; se usa catálogo local");
+            } else {
+                result.put("fuente", "remoto");
+                result.put("message", "Modelos actualizados desde el proveedor");
+            }
+            result.put("ok", true);
+            result.put("modelos", modelos);
+            result.put("endpoint", endpointFinal);
+        } catch (Exception e) {
+            List<Map<String, Object>> fallback = modelCatalog.listarModelosFallbackPorProveedor(providerId);
+            result.put("ok", !fallback.isEmpty());
+            result.put("modelos", fallback);
+            result.put("fuente", "fallback");
+            result.put("endpoint", endpointFinal);
+            result.put("message", "No se pudo listar modelos remotos: " + e.getMessage());
+        }
+
+        return result;
     }
 
     public Map<String, Object> pullModeloOllama(String model) throws Exception {
@@ -208,8 +264,15 @@ public class ChatService {
             boolean valid = respuesta != null && !respuesta.startsWith("Error");
             result.put("valid", valid);
             result.put("message", valid ? "API key válida" : respuesta);
+
+            Map<String, Object> remoto = listarModelosRemotos(provider, apiKey, config.getEndpoint());
+            result.put("modelos", remoto.getOrDefault("modelos", List.of()));
+            result.put("fuenteModelos", remoto.getOrDefault("fuente", "ninguna"));
         } catch (Exception e) {
             result.put("message", "No se pudo validar: " + e.getMessage());
+            Map<String, Object> remoto = listarModelosRemotos(provider, apiKey, endpoint);
+            result.put("modelos", remoto.getOrDefault("modelos", List.of()));
+            result.put("fuenteModelos", remoto.getOrDefault("fuente", "ninguna"));
         }
 
         return result;

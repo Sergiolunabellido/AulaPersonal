@@ -1,0 +1,5 @@
+linux:
+  target:
+    - AppImage
+  category: Office
+  icon: electron/renderer/assets/imagenes/mobile_profile.png

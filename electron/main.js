@@ -1,5 +1,6 @@
-const {app, BrowserWindow, ipcMain, safeStorage} = require('electron');
+const {app, BrowserWindow, ipcMain, safeStorage, dialog} = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { execFile, spawn } = require('child_process');
 const { iniciarOllama, detenerOllama, obtenerEstadoOllama } = require('./ollamaManager');
 const { ejecutarSetupInicial, obtenerEstadoSetup } = require('./ollamaSetup');
@@ -10,11 +11,36 @@ const esLinux = process.platform === 'linux';
 let intervaloBloqueo = null;
 let procesoBackend = null;
 let ventanaPrincipal = null;
+let estadoBackend = {
+  online: false,
+  error: null,
+  javaExe: null,
+  jar: null,
+  logFile: null,
+};
+
+function obtenerDirLogs() {
+  const dir = path.join(app.getPath('userData'), 'logs');
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function crearEscritorLog(nombre) {
+  const logFile = path.join(obtenerDirLogs(), nombre);
+  const stream = fs.createWriteStream(logFile, { flags: 'a' });
+  const stamp = () => new Date().toISOString();
+  stream.write(`\n===== ${stamp()} =====\n`);
+  return { logFile, stream, stamp };
+}
 
 function obtenerJavaEjecutable() {
   if (app.isPackaged) {
     const rutaJre = path.join(process.resourcesPath, 'jre', 'bin');
     return path.join(rutaJre, esWindows ? 'java.exe' : 'java');
+  }
+  const jreLocal = path.join(__dirname, '..', 'build', 'jre', 'bin', esWindows ? 'java.exe' : 'java');
+  if (fs.existsSync(jreLocal)) {
+    return jreLocal;
   }
   return 'java';
 }
@@ -35,24 +61,83 @@ function matarProceso(nombre) {
   }
 }
 
+function mostrarErrorArranque(titulo, detalle) {
+  const logHint = estadoBackend.logFile
+    ? `\n\nRegistro: ${estadoBackend.logFile}`
+    : '';
+  dialog.showErrorBox(titulo, `${detalle}${logHint}`);
+}
+
 async function iniciarBackend() {
   const javaExe = obtenerJavaEjecutable();
   const rutaJar = obtenerRutaJar();
   const rutaDatosUsuario = app.getPath('userData');
+  const { logFile, stream, stamp } = crearEscritorLog('backend.log');
+
+  estadoBackend = {
+    online: false,
+    error: null,
+    javaExe,
+    jar: rutaJar,
+    logFile,
+  };
+
+  if (!fs.existsSync(rutaJar)) {
+    estadoBackend.error = `No se encontró el backend JAR:\n${rutaJar}`;
+    stream.write(`[${stamp()}] ${estadoBackend.error}\n`);
+    stream.end();
+    mostrarErrorArranque('Backend no disponible', estadoBackend.error);
+    return false;
+  }
+
+  if (javaExe !== 'java' && !fs.existsSync(javaExe)) {
+    estadoBackend.error = `No se encontró el JRE embebido:\n${javaExe}`;
+    stream.write(`[${stamp()}] ${estadoBackend.error}\n`);
+    stream.end();
+    mostrarErrorArranque('Backend no disponible', estadoBackend.error);
+    return false;
+  }
+
+  stream.write(`[${stamp()}] Iniciando: ${javaExe} -jar ${rutaJar}\n`);
 
   procesoBackend = spawn(javaExe, ['-jar', rutaJar], {
     env: {
       ...process.env,
       APP_DATA_DIR: rutaDatosUsuario,
     },
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
 
+  procesoBackend.stdout.on('data', (chunk) => stream.write(chunk));
+  procesoBackend.stderr.on('data', (chunk) => stream.write(chunk));
   procesoBackend.on('error', (err) => {
+    estadoBackend.error = `Error al arrancar el backend: ${err.message}`;
+    stream.write(`[${stamp()}] ${estadoBackend.error}\n`);
     console.error('Backend start error:', err.message);
   });
+  procesoBackend.on('exit', (code, signal) => {
+    stream.write(`[${stamp()}] Backend salió code=${code} signal=${signal}\n`);
+    if (!estadoBackend.online) {
+      estadoBackend.error = estadoBackend.error
+        || `El backend terminó antes de estar listo (code=${code}).`;
+    }
+  });
 
-  await esperarBackend();
+  const listo = await esperarBackend();
+  if (listo) {
+    estadoBackend.online = true;
+    stream.write(`[${stamp()}] Backend listo en http://localhost:8080\n`);
+    return true;
+  }
+
+  estadoBackend.error = estadoBackend.error
+    || 'El backend no respondió en http://localhost:8080 tras 30 s.';
+  stream.write(`[${stamp()}] ${estadoBackend.error}\n`);
+  mostrarErrorArranque(
+    'Backend no disponible',
+    'Chat AI, Música y Notas necesitan el servidor local.\n\n' + estadoBackend.error
+  );
+  return false;
 }
 
 function esperarBackend() {
@@ -61,16 +146,25 @@ function esperarBackend() {
     let intentos = 0;
 
     function comprobar() {
+      if (procesoBackend && procesoBackend.exitCode !== null) {
+        resolve(false);
+        return;
+      }
+
       intentos++;
-      const req = http.get('http://localhost:8080/api/notas', () => {
-        resolve();
+      const req = http.get('http://localhost:8080/api/notas', (res) => {
+        res.resume();
+        resolve(res.statusCode === 200);
       });
       req.on('error', () => {
         if (intentos >= 30) {
-          resolve();
+          resolve(false);
         } else {
           setTimeout(comprobar, 1000);
         }
+      });
+      req.setTimeout(2000, () => {
+        req.destroy();
       });
       req.end();
     }
@@ -94,7 +188,7 @@ function crearVentana() {
 
   if (esLinux) {
     ventanaPrincipal.setIcon(path.join(__dirname, 'renderer', 'assets', 'imagenes', 'mobile_profile.svg'));
-    }
+  }
 }
 
 ipcMain.handle('obtener-icono', async (_event, ruta) => {
@@ -105,6 +199,8 @@ ipcMain.handle('obtener-icono', async (_event, ruta) => {
     return '';
   }
 });
+
+ipcMain.handle('backend-status', () => ({ ...estadoBackend }));
 
 ipcMain.handle('ollama-status', async () => {
   return obtenerEstadoOllama();
@@ -167,7 +263,13 @@ ipcMain.handle('desbloquear-todo', () => {
 });
 
 app.whenReady().then(async () => {
-  await iniciarOllama();
+  const ollama = await iniciarOllama({
+    logDir: obtenerDirLogs(),
+  });
+  if (!ollama.online) {
+    console.error('Ollama no está disponible al arrancar:', ollama.error || 'offline');
+  }
+
   await iniciarBackend();
   crearVentana();
   ejecutarSetupInicial().catch((err) => {

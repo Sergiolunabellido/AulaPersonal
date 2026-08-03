@@ -54,6 +54,15 @@ public class ChatController {
         );
     }
 
+    @PostMapping("/models/remote")
+    public Map<String, Object> listarModelosRemotos(@RequestBody Map<String, String> body) {
+        return chatService.listarModelosRemotos(
+                body.getOrDefault("provider", ""),
+                body.getOrDefault("apiKey", ""),
+                body.getOrDefault("endpoint", "")
+        );
+    }
+
     @GetMapping("/sessions")
     public List<Conversacion> listarSesiones() {
         return chatService.listarConversaciones();

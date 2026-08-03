@@ -85,6 +85,14 @@
         } catch (e) {
             $('loading-indicator').classList.add('hidden');
             $('error-state').classList.remove('hidden');
+            var msg = document.querySelector('#error-state p');
+            if (msg && window.electronAPI && window.electronAPI.getBackendStatus) {
+                window.electronAPI.getBackendStatus().then(function (estado) {
+                    if (estado && estado.online === false) {
+                        msg.textContent = 'No se pudo conectar con el servidor local. Reinicia la app o revisa logs/backend.log.';
+                    }
+                }).catch(function () { /* ignore */ });
+            }
         }
     };
 

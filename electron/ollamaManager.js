@@ -9,6 +9,8 @@ const OLLAMA_HOST = '127.0.0.1:11434';
 const OLLAMA_BASE_URL = 'http://127.0.0.1:11434';
 
 let procesoOllama = null;
+let ultimoErrorOllama = null;
+let logStream = null;
 
 function obtenerDirectorioModelos() {
   const dir = path.join(app.getPath('userData'), 'ollama', 'models');
@@ -30,6 +32,11 @@ function obtenerRutaOllama() {
   if (fs.existsSync(localBuild)) return localBuild;
 
   return esWindows ? 'ollama.exe' : 'ollama';
+}
+
+function escribirLog(mensaje) {
+  if (!logStream) return;
+  logStream.write(`[${new Date().toISOString()}] ${mensaje}\n`);
 }
 
 function comprobarOllamaOnline() {
@@ -59,13 +66,30 @@ function esperarOllama(maxIntentos = 30) {
   });
 }
 
-async function iniciarOllama() {
+async function iniciarOllama(opciones = {}) {
+  ultimoErrorOllama = null;
+
+  if (opciones.logDir) {
+    fs.mkdirSync(opciones.logDir, { recursive: true });
+    logStream = fs.createWriteStream(path.join(opciones.logDir, 'ollama.log'), { flags: 'a' });
+    escribirLog('===== inicio Ollama =====');
+  }
+
   if (await comprobarOllamaOnline()) {
+    escribirLog('Ollama ya estaba online');
     return { started: false, online: true };
   }
 
   const ollamaExe = obtenerRutaOllama();
   const modelsDir = obtenerDirectorioModelos();
+
+  if (ollamaExe.includes(path.sep) && !fs.existsSync(ollamaExe)) {
+    ultimoErrorOllama = `No se encontró el binario de Ollama: ${ollamaExe}`;
+    escribirLog(ultimoErrorOllama);
+    return { started: false, online: false, error: ultimoErrorOllama };
+  }
+
+  escribirLog(`Arrancando: ${ollamaExe} serve (models=${modelsDir})`);
 
   procesoOllama = spawn(ollamaExe, ['serve'], {
     env: {
@@ -73,22 +97,45 @@ async function iniciarOllama() {
       OLLAMA_HOST,
       OLLAMA_MODELS: modelsDir,
     },
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });
 
+  procesoOllama.stdout.on('data', (chunk) => {
+    if (logStream) logStream.write(chunk);
+  });
+  procesoOllama.stderr.on('data', (chunk) => {
+    if (logStream) logStream.write(chunk);
+  });
   procesoOllama.on('error', (err) => {
+    ultimoErrorOllama = err.message;
+    escribirLog('Ollama start error: ' + err.message);
     console.error('Ollama start error:', err.message);
+  });
+  procesoOllama.on('exit', (code, signal) => {
+    escribirLog(`Ollama salió code=${code} signal=${signal}`);
   });
 
   const online = await esperarOllama();
-  return { started: true, online };
+  if (!online) {
+    ultimoErrorOllama = ultimoErrorOllama
+      || 'Ollama no respondió en http://127.0.0.1:11434 tras 30 s.';
+    escribirLog(ultimoErrorOllama);
+  } else {
+    escribirLog('Ollama online');
+  }
+
+  return { started: true, online, error: online ? null : ultimoErrorOllama };
 }
 
 function detenerOllama() {
   if (procesoOllama) {
     procesoOllama.kill();
     procesoOllama = null;
+  }
+  if (logStream) {
+    logStream.end();
+    logStream = null;
   }
 }
 
@@ -99,6 +146,7 @@ async function obtenerEstadoOllama() {
     host: OLLAMA_HOST,
     baseUrl: OLLAMA_BASE_URL,
     modelsDir: obtenerDirectorioModelos(),
+    error: online ? null : ultimoErrorOllama,
   };
 }
 

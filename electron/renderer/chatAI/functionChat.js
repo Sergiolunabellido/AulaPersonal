@@ -26,6 +26,7 @@
 
     let modelosGratuitos = [];
     let modelosDePago = [];
+    let proveedoresDePago = [];
     let modeloActivo = null;
     let sesionActiva = null;
     let mensajesSesion = [];
@@ -331,14 +332,113 @@
 
     // ── Modelos ──
 
+    const CACHE_MODELOS_TTL_MS = 60 * 60 * 1000;
+    const NOMBRES_PROVEEDOR = {
+        openai: 'OpenAI',
+        anthropic: 'Anthropic',
+        google: 'Google Gemini',
+        mistral: 'Mistral',
+        deepseek: 'DeepSeek',
+        custom: 'Personalizado',
+    };
+
+    const PROVEEDORES_PAGO_DEFECTO = [
+        { id: 'openai', nombre: 'OpenAI', endpoint: 'https://api.openai.com/v1', requiereApiKey: true },
+        { id: 'anthropic', nombre: 'Anthropic', endpoint: 'https://api.anthropic.com/v1', requiereApiKey: true },
+        { id: 'google', nombre: 'Google Gemini', endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai', requiereApiKey: true },
+        { id: 'mistral', nombre: 'Mistral', endpoint: 'https://api.mistral.ai/v1', requiereApiKey: true },
+        { id: 'deepseek', nombre: 'DeepSeek', endpoint: 'https://api.deepseek.com/v1', requiereApiKey: true },
+        { id: 'custom', nombre: 'Personalizado', endpoint: '', requiereApiKey: true },
+    ];
+
+    function claveCacheModelos(provider) {
+        return 'chat-models-cache:' + provider;
+    }
+
+    function leerCacheModelos(provider) {
+        try {
+            const raw = localStorage.getItem(claveCacheModelos(provider));
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (!parsed || !Array.isArray(parsed.modelos) || !parsed.guardadoEn) return null;
+            if (Date.now() - parsed.guardadoEn > CACHE_MODELOS_TTL_MS) return null;
+            return parsed.modelos;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function guardarCacheModelos(provider, modelos) {
+        try {
+            localStorage.setItem(claveCacheModelos(provider), JSON.stringify({
+                guardadoEn: Date.now(),
+                modelos: modelos || [],
+            }));
+        } catch (_) { /* ignore */ }
+    }
+
+    function invalidarCacheModelos(provider) {
+        try {
+            localStorage.removeItem(claveCacheModelos(provider));
+        } catch (_) { /* ignore */ }
+    }
+
+    function placeholderProveedor(prov) {
+        return {
+            id: '__needs_key__:' + prov.id,
+            nombre: (prov.nombre || NOMBRES_PROVEEDOR[prov.id] || prov.id) + ' · introduce API key',
+            provider: prov.id,
+            endpoint: prov.endpoint || '',
+            requiereApiKey: true,
+            esPlaceholderKey: true,
+            contextoMaximo: 128000,
+        };
+    }
+
+    function endpointProveedor(provider) {
+        if (provider === 'custom') {
+            return config.customEndpoint || '';
+        }
+        const found = (proveedoresDePago || []).find(p => p.id === provider);
+        return found?.endpoint || '';
+    }
+
+    async function obtenerModelosRemotosProveedor(provider, forzar) {
+        const apiKey = config.apiKeys[provider];
+        if (!apiKey) return [];
+
+        if (!forzar) {
+            const cache = leerCacheModelos(provider);
+            if (cache && cache.length > 0) return cache;
+        }
+
+        try {
+            const data = await peticion('POST', '/models/remote', {
+                provider,
+                apiKey,
+                endpoint: endpointProveedor(provider),
+            });
+            const modelos = data.modelos || [];
+            if (modelos.length > 0) {
+                guardarCacheModelos(provider, modelos);
+            }
+            return modelos;
+        } catch (_) {
+            const cache = leerCacheModelos(provider);
+            return cache || [];
+        }
+    }
+
     async function cargarModelos() {
+        let fallbackPago = [];
         try {
             const data = await peticion('GET', '/models?ollamaEndpoint=' + encodeURIComponent(OLLAMA_ENDPOINT));
             modelosGratuitos = data.gratuitos || [];
-            modelosDePago = data.dePago || [];
+            fallbackPago = data.dePago || [];
+            proveedoresDePago = data.proveedoresDePago || PROVEEDORES_PAGO_DEFECTO;
         } catch (_) {
             modelosGratuitos = [];
-            modelosDePago = [];
+            proveedoresDePago = PROVEEDORES_PAGO_DEFECTO;
         }
 
         if (modelosGratuitos.length === 0) {
@@ -349,9 +449,59 @@
             ];
         }
 
+        const pago = [];
+        for (const prov of proveedoresDePago) {
+            const key = config.apiKeys[prov.id];
+            if (key) {
+                let remotos = await obtenerModelosRemotosProveedor(prov.id, false);
+                if (remotos.length === 0) {
+                    remotos = fallbackPago.filter(m => m.provider === prov.id);
+                }
+                if (remotos.length === 0 && prov.id === 'custom') {
+                    remotos = [{
+                        id: config.customModel || 'custom',
+                        nombre: config.customModel || 'Modelo personalizado',
+                        provider: 'custom',
+                        endpoint: config.customEndpoint || '',
+                        requiereApiKey: true,
+                        contextoMaximo: 128000,
+                    }];
+                }
+                pago.push(...remotos);
+            } else {
+                pago.push(placeholderProveedor(prov));
+            }
+        }
+        modelosDePago = pago;
+
         await actualizarEstadoOllama();
         renderizarDropdownModelos();
         restaurarModeloSeleccionado();
+    }
+
+    async function refrescarModelosProveedor(provider) {
+        if (!provider || provider === 'ollama') return;
+        invalidarCacheModelos(provider);
+        const remotos = await obtenerModelosRemotosProveedor(provider, true);
+        modelosDePago = modelosDePago.filter(m => m.provider !== provider);
+        if (remotos.length > 0) {
+            modelosDePago.push(...remotos);
+        } else {
+            const prov = (proveedoresDePago || []).find(p => p.id === provider)
+                || PROVEEDORES_PAGO_DEFECTO.find(p => p.id === provider);
+            if (prov) modelosDePago.push(placeholderProveedor(prov));
+        }
+        renderizarDropdownModelos(document.getElementById('buscar-modelo')?.value || '');
+
+        if (modeloActivo?.provider === provider) {
+            const sigue = modelosDePago.find(m =>
+                m.provider === provider && m.id === modeloActivo.id && !m.esPlaceholderKey
+            );
+            if (!sigue) {
+                const primero = modelosDePago.find(m => m.provider === provider && !m.esPlaceholderKey);
+                if (primero) seleccionarModelo(primero);
+            }
+        }
     }
 
     async function actualizarEstadoOllama() {
@@ -422,7 +572,9 @@
 
         const filtrar = lista => lista.filter(m => {
             const nombre = (m.nombre || m.id || '').toLowerCase();
-            return !termino || nombre.includes(termino);
+            const provider = (m.provider || '').toLowerCase();
+            const label = (NOMBRES_PROVEEDOR[m.provider] || '').toLowerCase();
+            return !termino || nombre.includes(termino) || provider.includes(termino) || label.includes(termino);
         });
 
         const gratuitos = filtrar(modelosGratuitos);
@@ -440,7 +592,21 @@
         }
 
         gratuitos.forEach(m => dom.listaGratuitos.appendChild(crearOpcionModelo(m)));
-        pago.forEach(m => dom.listaPago.appendChild(crearOpcionModelo(m)));
+
+        const porProveedor = new Map();
+        pago.forEach(m => {
+            const key = m.provider || 'custom';
+            if (!porProveedor.has(key)) porProveedor.set(key, []);
+            porProveedor.get(key).push(m);
+        });
+
+        for (const [provider, modelos] of porProveedor) {
+            const titulo = document.createElement('p');
+            titulo.className = 'px-2 pt-2 pb-1 text-xs font-semibold text-amber-700/80 uppercase tracking-wide';
+            titulo.textContent = NOMBRES_PROVEEDOR[provider] || provider;
+            dom.listaPago.appendChild(titulo);
+            modelos.forEach(m => dom.listaPago.appendChild(crearOpcionModelo(m)));
+        }
 
         const hayResultados = gratuitos.length > 0 || pago.length > 0;
         dom.modelosVacio.classList.toggle('hidden', hayResultados);
@@ -471,12 +637,14 @@
             (activo ? 'bg-blue-50 text-blue-800' : 'hover:bg-gray-50 text-gray-700');
 
         const esGratis = !modelo.requiereApiKey;
-        const contextoMaximo = formatearTokens(obtenerContextoMaximo(modelo));
+        const contextoMaximo = modelo.esPlaceholderKey
+            ? 'Key'
+            : formatearTokens(obtenerContextoMaximo(modelo));
         btn.innerHTML =
             '<span class="w-2 h-2 rounded-full shrink-0 ' + (esGratis ? 'bg-green-500' : 'bg-amber-500') + '"></span>' +
             '<span class="flex-1 min-w-0 truncate font-medium">' + escaparHTML(modelo.nombre || modelo.id) + '</span>' +
             '<span class="text-xs text-gray-400 shrink-0">' + contextoMaximo + '</span>' +
-            '<span class="text-xs text-gray-400 shrink-0">' + (esGratis ? 'Gratis' : 'API') + '</span>';
+            '<span class="text-xs text-gray-400 shrink-0">' + (esGratis ? 'Gratis' : (modelo.esPlaceholderKey ? 'API' : 'API')) + '</span>';
 
         btn.onclick = () => seleccionarModelo(modelo);
         return btn;
@@ -504,6 +672,26 @@
     }
 
     function seleccionarModelo(modelo) {
+        if (modelo?.esPlaceholderKey) {
+            config.modoAuto = false;
+            modeloActivo = modelo;
+            config.modeloId = modelo.id;
+            config.provider = modelo.provider;
+            config.endpoint = modelo.endpoint || '';
+            dom.modeloLabel.textContent = NOMBRES_PROVEEDOR[modelo.provider] || modelo.provider;
+            dom.modeloBadge.className = 'w-2 h-2 rounded-full shrink-0 bg-amber-500';
+            dom.btnApiKey.classList.remove('hidden');
+            dom.btnApiKey.classList.add('flex');
+            dom.customFields.classList.toggle('hidden', modelo.provider !== 'custom');
+            actualizarPanelApiKey();
+            dom.panelApiKey.classList.remove('hidden');
+            guardarConfig();
+            renderizarDropdownModelos(document.getElementById('buscar-modelo')?.value || '');
+            cerrarSelectorModelo();
+            dom.subtitulo.textContent = 'Introduce tu API key para cargar los modelos de este proveedor';
+            return;
+        }
+
         config.modoAuto = false;
         modeloActivo = modelo;
         config.modeloId = modelo.id;
@@ -541,17 +729,17 @@
             return;
         }
 
-        const todos = [...modelosGratuitos, ...modelosDePago];
+        const todos = [...modelosGratuitos, ...modelosDePago.filter(m => !m.esPlaceholderKey)];
         let encontrado = todos.find(m => m.id === config.modeloId && m.provider === config.provider);
 
-        if (!encontrado && config.modeloId) {
+        if (!encontrado && config.modeloId && !String(config.modeloId).startsWith('__needs_key__:')) {
             encontrado = todos.find(m => m.id === config.modeloId);
         }
         if (!encontrado && modelosGratuitos.length > 0) {
             encontrado = modelosGratuitos[0];
         }
-        if (!encontrado && modelosDePago.length > 0) {
-            encontrado = modelosDePago[0];
+        if (!encontrado) {
+            encontrado = modelosDePago.find(m => !m.esPlaceholderKey);
         }
 
         if (encontrado) seleccionarModelo(encontrado);
@@ -588,17 +776,13 @@
         }
 
         const provider = modeloActivo.provider;
-        const nombres = {
-            openai: 'OpenAI',
-            anthropic: 'Anthropic',
-            deepseek: 'DeepSeek',
-            mistral: 'Mistral',
-            google: 'Google Gemini',
-            custom: 'tu proveedor',
-        };
+        const nombres = NOMBRES_PROVEEDOR;
 
         dom.apiKeyDescripcion.textContent =
-            'Introduce tu API key de ' + (nombres[provider] || provider) + ' para usar ' + (modeloActivo.nombre || modeloActivo.id) + '.';
+            'Introduce tu API key de ' + (nombres[provider] || provider) +
+            (modeloActivo.esPlaceholderKey
+                ? ' para cargar los modelos disponibles.'
+                : ' para usar ' + (modeloActivo.nombre || modeloActivo.id) + '.');
         dom.inputApiKey.value = obtenerApiKeyActual();
 
         const tieneKey = obtenerApiKeyActual().length > 0;
@@ -633,7 +817,14 @@
 
         guardarConfig();
         actualizarPanelApiKey();
-        alertas('success', 'API key guardada correctamente');
+        if (key) {
+            await refrescarModelosProveedor(provider);
+            alertas('success', 'API key guardada. Modelos actualizados.');
+        } else {
+            invalidarCacheModelos(provider);
+            await cargarModelos();
+            alertas('success', 'API key eliminada');
+        }
     };
 
     window.validarApiKey = async function () {
@@ -646,16 +837,33 @@
         try {
             const model = modeloActivo?.provider === 'custom'
                 ? config.customModel
-                : modeloActivo?.id;
+                : (modeloActivo?.esPlaceholderKey ? '' : modeloActivo?.id);
             const endpoint = modeloActivo?.provider === 'custom'
                 ? config.customEndpoint
-                : modeloActivo?.endpoint;
+                : (modeloActivo?.endpoint || endpointProveedor(provider));
             const res = await peticion('POST', '/keys/validate', {
                 provider,
                 apiKey,
                 model,
                 endpoint,
             });
+
+            config.apiKeys[provider] = apiKey;
+            guardarConfig();
+
+            if (Array.isArray(res.modelos) && res.modelos.length > 0) {
+                guardarCacheModelos(provider, res.modelos);
+                modelosDePago = modelosDePago.filter(m => m.provider !== provider);
+                modelosDePago.push(...res.modelos);
+                renderizarDropdownModelos(document.getElementById('buscar-modelo')?.value || '');
+                const primero = res.modelos[0];
+                if (primero && (modeloActivo?.esPlaceholderKey || modeloActivo?.provider === provider)) {
+                    seleccionarModelo(primero);
+                }
+            } else {
+                await refrescarModelosProveedor(provider);
+            }
+
             if (res.valid) {
                 alertas('success', res.message || 'API key válida');
             } else {
@@ -826,6 +1034,13 @@
             dom.panelApiKey.classList.remove('hidden');
             actualizarPanelApiKey();
             alertas('warning', 'Introduce y guarda tu API key para usar este modelo');
+            return;
+        }
+
+        if (!config.modoAuto && modeloActivo.esPlaceholderKey) {
+            dom.panelApiKey.classList.remove('hidden');
+            actualizarPanelApiKey();
+            alertas('warning', 'Guarda tu API key para cargar los modelos de este proveedor');
             return;
         }
 

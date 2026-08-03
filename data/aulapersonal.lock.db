@@ -1,6 +1,6 @@
 #FileLock
-#Tue Jul 14 23:27:40 CEST 2026
+#Mon Aug 03 18:25:57 CEST 2026
 hostName=Ares
-id=19f62874833ac346213ea1ba5faa2d588718828b44f
+id=19fc87239178fd3cb0ca1d8031ccbc355f76dcc2c76
 method=file
-server=192.168.1.9\:53478
+server=192.168.1.9\:52597

@@ -60,7 +60,7 @@ tasks.register('createMinimalJre') {
         def cmd = [
             jlinkFile.absolutePath,
             '--module-path', jmodsPath.absolutePath,
-            '--add-modules', 'java.base,java.sql,java.management,java.naming,java.xml,java.instrument,jdk.unsupported,java.logging,jdk.management,java.security.jgss',
+            '--add-modules', 'java.base,java.sql,java.management,java.naming,java.xml,java.instrument,jdk.unsupported,java.logging,jdk.management,java.security.jgss,jdk.crypto.ec,java.net.http,java.desktop,java.transaction.xa,java.rmi,jdk.zipfs,java.compiler',
             '--output', outputDir.absolutePath,
             '--strip-debug',
             '--no-header-files',
