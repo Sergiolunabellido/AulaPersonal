@@ -1,196 +1,168 @@
-# 📚 Aula Personal
+# Aula Personal
 
-**Aula Personal** es una suite de productividad de escritorio 🖥️ diseñada para estudiantes y personas que trabajan desde casa. Ayuda a mantener el enfoque bloqueando aplicaciones distractoras 🚫, gestionando sesiones de estudio con la técnica Pomodoro 🍅, y tomando notas persistentes 📝.
-
----
-
-## ✨ Tecnologías
-
-| Capa | Tecnología |
-|---|---|
-| 🎨 Frontend | Electron 35, JavaScript, Tailwind CSS (CDN) |
-| ⚙️ Backend | Spring Boot 4.0.6, Java 17, Gradle |
-| 🗄️ Base de datos | H2 embebida (producción) / MySQL (desarrollo) |
-| 🔒 Seguridad | Context isolation + preload script (Electron) |
-| 📦 Distribución | electron-builder (NSIS Windows / Linux dir) |
+Suite de productividad de escritorio para estudiar y trabajar con foco: bloqueo de apps, Pomodoro, notas, chat con IA (Ollama / APIs) y radio/música.
 
 ---
 
-## 🏗️ Arquitectura
+## Instalación (usuarios)
 
-```
-┌─────────────────────────────────────────────────┐
-│  🖥️ Electron (ventana nativa)                    │
-│  ┌───────────────────────────────────────────┐   │
-│  │  🌐 Renderer (index.html + SPA)           │   │
-│  │  ┌─────────┐ ┌──────────┐ ┌──────────┐   │   │
-│  │  │ 👋      │ │ 🚫 App   │ │ 🍅       │   │   │
-│  │  │ Welcome │ │ Blocker  │ │ Pomodoro │   │   │
-│  │  ├─────────┤ ├──────────┤ ├──────────┤   │   │
-│  │  │ 📝     │ │ 🤖 AI    │ │ 🎵 Music │   │   │
-│  │  │ Notes  │ │ Chat     │ │ (futuro) │   │   │
-│  │  └─────────┘ └──────────┘ └──────────┘   │   │
-│  └──────────┬────────────────────────────────┘   │
-│             │ 🔌 IPC (contextBridge)              │
-│  ┌──────────▼────────────────────────────────┐   │
-│  │  ⚡ Main Process (main.js)                  │   │
-│  │  • Inicia backend.jar                      │   │
-│  │  • Bloquea procesos (taskkill/pkill)       │   │
-│  │  • Obtiene iconos del sistema              │   │
-│  └──────────┬────────────────────────────────┘   │
-└─────────────┼───────────────────────────────────┘
-              │ 🌐 HTTP (localhost:8080)
-┌─────────────▼───────────────────────────────────┐
-│  ☕ Spring Boot (backend.jar)                     │
-│  ┌───────────────────────────────────────────┐   │
-│  │  NotaController → NotaService → JPA/H2   │   │
-│  │  H2 Database (archivo embebido)           │   │
-│  └───────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────┘
-```
+No hace falta instalar Java, Node ni Ollama: van incluidos en el paquete.
 
-El frontend de Electron se comunica con el backend mediante `fetch()` a `localhost:8080`. El proceso principal (`main.js`) también ejecuta tareas nativas como matar procesos del sistema. El puente seguro entre renderer y main se hace mediante **IPC** (`ipcRenderer.invoke` / `ipcMain.handle`).
+### Windows
 
----
+1. Descarga **`Aula Personal Setup 1.0.0.exe`** desde la [última release](https://github.com/Sergiolunabellido/AulaPersonal/releases).
+2. Ejecuta el instalador NSIS y elige la carpeta de instalación.
+3. Marca la opción de acceso directo en el escritorio si quieres.
+4. Abre **Aula Personal** desde el menú Inicio o el acceso directo.
 
-## 🚀 Funcionalidades
+> Si Windows SmartScreen avisa (app sin firmar), pulsa *Más información* → *Ejecutar de todas formas*.
 
-### 🚫 App Blocker
-Bloquea aplicaciones distractoras durante el tiempo de estudio.
+### Linux (x64)
 
-- ➕ Añadir/quitar aplicaciones por nombre de proceso
-- ⏱️ Bloqueo temporal con temporizador visible
-- 💾 Persistencia del estado al navegar entre páginas
-- 🔗 Integración con Pomodoro para bloqueo automático
-- 🪟 Windows: `taskkill` | 🐧 Linux: `pkill`
-
-### 🍅 Pomodoro
-Temporizador de estudio basado en la técnica Pomodoro con alternancia automática.
-
-- ⏲️ Duración de sesión configurable (30 min – 3 h)
-- 🔢 Número de sesiones personalizable
-- ☕ Duración de descansos (5 – 30 min)
-- 👁️ Vista previa con totales calculados
-- 💾 Persistencia del temporizador (sobrevive a navegación y cierre)
-- 🔒 Bloqueo automático de apps al iniciar
-- 🔊 Aviso sonoro al finalizar cada sesión
-
-### 📝 Notes
-Bloc de notas persistente con almacenamiento en H2 vía API REST.
-
-- ✏️ Crear, editar, guardar y eliminar notas
-- 📋 Lista lateral ordenada por última modificación
-- ⌨️ Atajo `Ctrl+S` para guardar
-- 💾 Persistencia completa (sobrevive al cierre)
-
-### 🤖 AI Chat *(próximamente)*
-Asistente virtual con inteligencia artificial e historial de conversaciones persistente.
-
-### 🎵 Music *(próximamente)*
-Reproductor de música integrado con APIs externas (Spotify, radios).
-
----
-
-## 📦 Requisitos (para desarrollo)
-
-- **Node.js** 18+
-- **Java** 17+ (JDK)
-- **Gradle** (incluido como wrapper)
-
-> 🚀 **Para usuarios finales**: no necesitan nada. El instalador incluye JRE propio.
-
----
-
-## 🛠️ Comandos
+1. Descarga **`AulaPersonal-linux-x64.tar.gz`** desde la [última release](https://github.com/Sergiolunabellido/AulaPersonal/releases).
+2. Extrae y lanza:
 
 ```bash
-# 🔧 Desarrollo (solo frontend, asume backend corriendo)
-npm start
-
-# 📦 Compilar backend (JAR + JRE mínimo)
-npm run build:backend
-
-# 🏗️ Compilar todo e instalar
-npm run build
-
-# ✅ Tests del backend
-./gradlew test          # Linux/Mac
-gradlew.bat test        # Windows
+tar -xzf AulaPersonal-linux-x64.tar.gz
+cd linux-unpacked
+chmod +x aulapersonal chrome-sandbox 2>/dev/null || true
+./aulapersonal
 ```
 
+3. Si el sandbox de Chromium falla por permisos:
+
+```bash
+sudo chown root:root chrome-sandbox
+sudo chmod 4755 chrome-sandbox
+```
+
+O inicia sin sandbox (solo si lo anterior no es viable):
+
+```bash
+./aulapersonal --no-sandbox
+```
+
+| Archivo de release | Plataforma | Contenido |
+|---|---|---|
+| `Aula Personal Setup 1.0.0.exe` | Windows x64 | Instalador NSIS (~1,4 GB) |
+| `AulaPersonal-linux-x64.tar.gz` | Linux x64 | App portable + JRE + Ollama (~377 MB) |
+
 ---
 
-## 🌐 API REST
+## Qué incluye
 
-### 📝 Notas
-
-| Método | Ruta | Descripción | Código |
-|---|---|---|---|
-| `GET` | `/api/notas` | Lista todas las notas | `200` |
-| `GET` | `/api/notas/{id}` | Obtiene una nota por ID | `200` / `404` |
-| `POST` | `/api/notas` | Crea una nota `{"titulo": "...", "contenido": "..."}` | `201` |
-| `PUT` | `/api/notas/{id}` | Actualiza una nota | `200` / `404` |
-| `DELETE` | `/api/notas/{id}` | Elimina una nota | `204` / `404` |
-
-> ℹ️ `titulo` es obligatorio. Si está vacío → `400 Bad Request`.
+| Módulo | Descripción |
+|---|---|
+| **App Blocker** | Bloquea apps distractoras (`taskkill` / `pkill`), con UI sincronizada al Pomodoro |
+| **Pomodoro** | Sesiones/descansos configurables, widget en la barra lateral, funciona en segundo plano |
+| **Notes** | Notas persistentes en H2 vía API REST |
+| **AI Chat** | Ollama local embebido + proveedores de pago (OpenAI, Anthropic, Google, Mistral, DeepSeek, custom) |
+| **Music** | Radios (Radio Browser) y reproducción integrada |
 
 ---
 
-## 📁 Estructura del proyecto
+## Arquitectura
+
+```
+Electron (ventana)
+├── Renderer (SPA: App Blocker, Pomodoro, Notes, Chat, Music)
+├── Main (IPC, App Blocker, arranque backend + Ollama)
+└── Recursos empaquetados
+    ├── JRE mínimo (jlink) + backend.jar  →  localhost:8080
+    └── Ollama embebido                  →  modelos locales
+```
+
+Frontend ↔ backend con `fetch()` a `http://localhost:8080`. IPC seguro vía `preload` + `contextBridge`.
+
+---
+
+## Desarrollo
+
+### Requisitos
+
+- Node.js 18+
+- JDK 17+ (`JAVA_HOME` apuntando a un JDK válido)
+- Gradle Wrapper incluido
+
+### Comandos
+
+```bash
+# Arrancar en desarrollo (recompila backend si hace falta)
+npm start
+
+# Solo backend (JAR + JRE)
+npm run build:backend
+
+# Tests backend
+.\gradlew.bat test    # Windows
+./gradlew test        # Linux/macOS
+```
+
+### Generar instaladores
+
+**Importante:** el build de Linux sustituye `build/jre` y `build/ollama` por binarios Linux. Genera **primero Windows** y **después Linux**.
+
+```bash
+# Windows — genera dist/Aula Personal Setup 1.0.0.exe
+npm run build:win
+
+# Linux — genera dist/AulaPersonal-linux-x64.tar.gz
+npm run build:linux
+```
+
+En Windows, para Linux hace falta `tar` (incluido) y, idealmente, WSL para empaquetar el `.tar.gz` con symlinks correctos.
+
+---
+
+## API REST (notas)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/notas` | Listar |
+| `GET` | `/api/notas/{id}` | Obtener |
+| `POST` | `/api/notas` | Crear `{"titulo","contenido"}` |
+| `PUT` | `/api/notas/{id}` | Actualizar |
+| `DELETE` | `/api/notas/{id}` | Eliminar |
+
+`titulo` es obligatorio (`400` si falta).
+
+---
+
+## Persistencia
+
+| Dato | Dónde |
+|---|---|
+| Notas, chats, mensajes | H2 en `{userData}/data/` |
+| Config Pomodoro / apps | `localStorage` |
+| Bloqueo activo (UI) | `sessionStorage` (`appblocker-bloqueo`) |
+| API keys de chat | almacén seguro de Electron (`safeStorage`) cuando está disponible |
+
+---
+
+## Estructura
 
 ```
 AulaPersonal/
-├── 📦 electron/                    # Frontend Electron
-│   ├── ⚡ main.js                  # Proceso principal
-│   ├── 🔌 preload.js               # Bridge IPC (contextBridge)
-│   └── 🌐 renderer/                # Interfaz de usuario (SPA)
-│       ├── 🏠 index.html           # Layout + sidebar
-│       ├── ⚙️ index.js             # Navegación SPA + alertas
-│       ├── 🚫 AppBlocker/          # Bloqueo de aplicaciones
-│       ├── 🍅 Pomodoro/            # Temporizador Pomodoro
-│       ├── 📝 notes/               # Bloc de notas
-│       ├── 🤖 chatAI/              # Chat con IA (en desarrollo)
-│       ├── 👋 welcome/             # Página de inicio
-│       └── 🖼️ assets/              # Imágenes y recursos
-├── ☕ src/                          # Backend Spring Boot
-│   └── main/java/.../
-│       ├── 🚀 AulaPersonalApplication.java
-│       ├── ⚙️ config/              # Configuración (CORS)
-│       └── 📝 notas/               # Módulo Notas (Controller, Service, Repository, Entity)
-├── 📜 build.gradle                 # Dependencias Gradle
-├── 📜 package.json                 # Dependencias Node/Electron
-├── 📜 settings.gradle
-└── 📖 DOCUMENTACION.md             # Documentación detallada
+├── electron/                 # Main, preload, renderer SPA
+│   ├── main.js
+│   ├── preload.js
+│   ├── ollamaManager.js
+│   └── renderer/             # App Blocker, Pomodoro, Notes, Chat, Music
+├── src/main/java/.../        # Spring Boot (notas + chat AI)
+├── scripts/                  # build-backend, ollama, linux pack, verify
+├── package.json
+└── build.gradle
 ```
 
 ---
 
-## 💾 Persistencia
+## Futuras mejoras
 
-### Backend (H2 Database)
-- 📁 Archivo: `{userData}/data/aulapersonal.mv.db`
-- 🤖 `ddl-auto=update` (creación automática de tablas)
-- 🔄 Perfil `mysql` disponible para desarrollo
-
-### Frontend (localStorage / sessionStorage)
-
-| Clave | Almacén | Contenido |
-|---|---|---|
-| `apps-bloqueo` | `localStorage` | Apps registradas por el usuario |
-| `pomodoro-apps-seleccionadas` | `localStorage` | Apps marcadas para bloqueo desde Pomodoro |
-| `pomodoro-config` | `localStorage` | Configuración del temporizador |
-| `pomodoro-timer` | `localStorage` | Estado activo del temporizador |
-| `appblocker-bloqueo` | `sessionStorage` | Estado de bloqueo activo |
+- MCPs y Skills en el chat con IA
+- Modelos gratuitos alojados en nube para equipos modestos
 
 ---
 
-## 📄 Licencia
+## Licencia
 
 ISC
-
-
-## Futuras Mejoras
-
-- Implementación de MCPs en el Chat con IA.
-- Implementación de Skills en el chat con IA.
-- Alojamiento de modelos gratuitos en nube para un uso mas rápido desde cualquier tipo de equipo.
