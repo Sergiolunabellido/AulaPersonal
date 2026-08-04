@@ -40,6 +40,25 @@
             bloqueadas,
             finBloqueo,
         }));
+        window.dispatchEvent(new CustomEvent('app-bloqueo-cambio'));
+    }
+
+    function aplicarEstadoBloqueoDesdeStorage() {
+        const habiaBloqueo = restaurarEstadoBloqueo();
+        if (!habiaBloqueo) {
+            if (idTemporizador) {
+                clearTimeout(idTemporizador);
+                idTemporizador = null;
+            }
+            bloqueadas = [];
+            finBloqueo = null;
+            const banner = document.getElementById('estado-bloqueo');
+            const btn = document.getElementById('btn-bloquear');
+            if (banner) banner.classList.add('hidden');
+            if (btn) btn.disabled = false;
+            const filtro = (document.getElementById('input-buscar')?.value || '').toLowerCase();
+            renderizarApps(aplicaciones.filter(a => a.nombre.toLowerCase().includes(filtro)));
+        }
     }
 
     function restaurarEstadoBloqueo() {
@@ -50,6 +69,8 @@
                 finBloqueo = guardado.finBloqueo;
                 mostrarEstadoBloqueo();
                 actualizarTiempoRestante();
+                const filtro = (document.getElementById('input-buscar')?.value || '').toLowerCase();
+                renderizarApps(aplicaciones.filter(a => a.nombre.toLowerCase().includes(filtro)));
                 return true;
             } else if (guardado) {
                 sessionStorage.removeItem('appblocker-bloqueo');
@@ -133,6 +154,21 @@
         });
 
         restaurarEstadoBloqueo();
+
+        const onBloqueoCambio = () => {
+            if (!document.getElementById('estado-bloqueo')) return;
+            aplicarEstadoBloqueoDesdeStorage();
+        };
+        window.addEventListener('app-bloqueo-cambio', onBloqueoCambio);
+
+        const observadorApp = new MutationObserver(() => {
+            if (!document.getElementById('estado-bloqueo')) {
+                window.removeEventListener('app-bloqueo-cambio', onBloqueoCambio);
+                observadorApp.disconnect();
+            }
+        });
+        const appRoot = document.getElementById('app');
+        if (appRoot) observadorApp.observe(appRoot, { childList: true });
     })();
 
     function renderizarApps(lista) {
@@ -278,7 +314,11 @@
         await window.electronAPI.desbloquearTodo();
         bloqueadas = [];
         finBloqueo = null;
-        sessionStorage.removeItem('appblocker-bloqueo');
+        if (typeof window.limpiarEstadoBloqueoApps === 'function') {
+            window.limpiarEstadoBloqueoApps();
+        } else {
+            sessionStorage.removeItem('appblocker-bloqueo');
+        }
         document.getElementById('estado-bloqueo').classList.add('hidden');
         document.getElementById('btn-bloquear').disabled = false;
         guardarSeleccionadas([]);

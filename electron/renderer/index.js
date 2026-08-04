@@ -43,6 +43,58 @@ document.addEventListener('DOMContentLoaded', () => cargarPagina(null, 'bienveni
 
 const CLAVE_POMODORO_CONFIG = 'pomodoro-config';
 const POMODORO_DEFECTO = { minutosSesion: 60, numeroSesiones: 3, minutosDescanso: 5 };
+const CLAVE_APPBLOCKER_BLOQUEO = 'appblocker-bloqueo';
+const CLAVE_APPS_BLOQUEO = 'apps-bloqueo';
+
+/**
+ * Mapea nombres de proceso (sin .exe) a nombres de display del catálogo App Blocker.
+ * @param {string[]} procesos
+ * @returns {string[]}
+ */
+function nombresAppsDesdeProcesos(procesos) {
+    let catalogo = [];
+    try {
+        catalogo = JSON.parse(localStorage.getItem(CLAVE_APPS_BLOQUEO) || '[]');
+    } catch (_) { /* ignore */ }
+
+    return (procesos || []).map((proceso) => {
+        const clave = String(proceso).replace(/\.exe$/i, '').toLowerCase();
+        const app = catalogo.find(a =>
+            String(a.proceso || '').replace(/\.exe$/i, '').toLowerCase() === clave
+        );
+        return app?.nombre || proceso;
+    });
+}
+
+/**
+ * Persiste el estado visual de bloqueo para que App Blocker lo muestre
+ * (banner amarillo + countdown), aunque el bloqueo lo haya iniciado Pomodoro.
+ * @param {string[]} procesosONombres Lista de procesos o nombres
+ * @param {number} minutos Duración restante del bloqueo
+ * @param {{ usarNombres?: boolean }} [opciones]
+ */
+function registrarEstadoBloqueoApps(procesosONombres, minutos, opciones = {}) {
+    if (!procesosONombres?.length || !(minutos > 0)) return;
+
+    const bloqueadas = opciones.usarNombres
+        ? [...procesosONombres]
+        : nombresAppsDesdeProcesos(procesosONombres);
+
+    sessionStorage.setItem(CLAVE_APPBLOCKER_BLOQUEO, JSON.stringify({
+        bloqueadas,
+        finBloqueo: Date.now() + minutos * 60 * 1000,
+    }));
+    window.dispatchEvent(new CustomEvent('app-bloqueo-cambio'));
+}
+
+/** Quita el banner de bloqueo de App Blocker (p. ej. al detener el Pomodoro). */
+function limpiarEstadoBloqueoApps() {
+    sessionStorage.removeItem(CLAVE_APPBLOCKER_BLOQUEO);
+    window.dispatchEvent(new CustomEvent('app-bloqueo-cambio'));
+}
+
+window.registrarEstadoBloqueoApps = registrarEstadoBloqueoApps;
+window.limpiarEstadoBloqueoApps = limpiarEstadoBloqueoApps;
 
 function leerConfigPomodoro() {
     try {
@@ -350,6 +402,9 @@ async function sidebarFocusDetener() {
     if (window.electronAPI?.desbloquearTodo) {
         try { await window.electronAPI.desbloquearTodo(); } catch (_) { /* ignore */ }
     }
+    if (typeof window.limpiarEstadoBloqueoApps === 'function') {
+        window.limpiarEstadoBloqueoApps();
+    }
     actualizarSidebarFocusTimer();
 }
 
@@ -373,6 +428,12 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('storage', (e) => {
     if (e.key === CLAVE_POMODORO_TIMER) actualizarSidebarFocusTimer();
 });
+
+// Al restaurar la ventana, el sidebar se pone al día con el reloj real
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') actualizarSidebarFocusTimer();
+});
+window.addEventListener('focus', () => actualizarSidebarFocusTimer());
 
 const coloresModal = {
     info:    { color: 'bg-blue-500', hover: 'hover:bg-blue-600', icono: 'ℹ️' },

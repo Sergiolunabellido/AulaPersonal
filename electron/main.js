@@ -181,10 +181,14 @@ function crearVentana() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
+      // El Pomodoro (y el widget de la sidebar) deben seguir ticando al minimizar
+      backgroundThrottling: false,
     },
   });
 
   ventanaPrincipal.loadFile('electron/renderer/index.html');
+  // Por si la preferencia no aplica en alguna versión: forzar en webContents
+  ventanaPrincipal.webContents.setBackgroundThrottling(false);
 
   if (esLinux) {
     ventanaPrincipal.setIcon(path.join(__dirname, 'renderer', 'assets', 'imagenes', 'mobile_profile.svg'));

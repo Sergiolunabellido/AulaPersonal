@@ -65,8 +65,17 @@
    * Guarda el estado completo del temporizador en localStorage.
    * Incluye tanto las variables del temporizador como la configuración con la que
    * se inició, para poder restaurar correctamente al volver.
+   *
+   * Importante: marcaTiempo + segundosRestantes forman un ancla de reloj real
+   * (no se reescribe cada tick). Así el tiempo sigue siendo correcto aunque
+   * Chromium ralentice los intervalos en segundo plano.
    */
   function persistirEstadoTemporizador() {
+    // No escribir si esta instancia ya no es la página activa (SPA)
+    if (!paginaMontada) return;
+    if (temporizador.estado !== 'running' && temporizador.estado !== 'paused' && temporizador.estado !== 'completed') {
+      return;
+    }
     localStorage.setItem(CLAVE_TEMPORIZADOR, JSON.stringify({
       estado: temporizador.estado,
       fase: temporizador.fase,
@@ -74,7 +83,7 @@
       descansoActual: temporizador.descansoActual,
       segundosRestantes: temporizador.segundosRestantes,
       totalSegundosFase: temporizador.totalSegundosFase,
-      marcaTiempo: Date.now(),
+      marcaTiempo: temporizador.marcaTiempo || Date.now(),
       instantaneaConfig: {
         minutosSesion: estado.minutosSesion,
         numeroSesiones: estado.numeroSesiones,
@@ -152,7 +161,7 @@
       temporizador.fase = guardado.fase;
       temporizador.sesionActual = guardado.sesionActual;
       temporizador.descansoActual = guardado.descansoActual;
-      temporizador.segundosRestantes = guardado.segundosRestantes;
+      anclarSegundosRestantes(guardado.segundosRestantes);
       temporizador.totalSegundosFase = guardado.totalSegundosFase;
       mostrarVistaTemporizador('active');
       establecerControlesHabilitados(false);
@@ -162,6 +171,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         Reanudar
       `;
+      void reaplicarBloqueoAppsSiProcede();
       return true;
     }
 
@@ -188,7 +198,7 @@
             temporizador.fase = 'session';
             temporizador.sesionActual = sesionActual;
             temporizador.descansoActual = descansoActual;
-            temporizador.segundosRestantes = 0;
+            anclarSegundosRestantes(0);
             temporizador.totalSegundosFase = totalSegundosFase;
             mostrarVistaTemporizador('completed');
             establecerControlesHabilitados(true);
@@ -209,7 +219,7 @@
       temporizador.fase = fase;
       temporizador.sesionActual = sesionActual;
       temporizador.descansoActual = descansoActual;
-      temporizador.segundosRestantes = restante;
+      anclarSegundosRestantes(restante);
       temporizador.totalSegundosFase = fase === 'session'
         ? configuracion.minutosSesion * 60
         : configuracion.minutosDescanso * 60;
@@ -225,6 +235,7 @@
 
       // Reanudar el intervalo
       temporizador.idIntervalo = setInterval(ejecutarTick, 1000);
+      void reaplicarBloqueoAppsSiProcede();
       return true;
     }
 
@@ -236,7 +247,7 @@
   //  Gestiona el ciclo de ejecución del pomodoro una vez iniciado.
   // ========================================================================
 
-  /** @type {{ estado: string, fase: string, sesionActual: number, descansoActual: number, segundosRestantes: number, totalSegundosFase: number, idIntervalo: number|null }} */
+  /** @type {{ estado: string, fase: string, sesionActual: number, descansoActual: number, segundosRestantes: number, totalSegundosFase: number, marcaTiempo: number, idIntervalo: number|null }} */
   const temporizador = {
     estado: 'idle',
     fase: 'session',
@@ -244,8 +255,51 @@
     descansoActual: 0,
     segundosRestantes: 0,
     totalSegundosFase: 0,
+    /** Instantánea de Date.now() cuando se fijó segundosRestantes (reloj real) */
+    marcaTiempo: 0,
     idIntervalo: null,
   };
+
+  /**
+   * La SPA puede montar pomodoro.js varias veces. Sin este flag, listeners
+   * huérfanos de visitas anteriores siguen vivos y, al minimizar/restaurar,
+   * vuelven a persistir un temporizador que el usuario ya había detenido.
+   */
+  let paginaMontada = true;
+
+  function onVisibilidadCambio() {
+    if (!paginaMontada) return;
+    if (document.visibilityState === 'visible' && temporizador.estado === 'running') {
+      ejecutarTick();
+    }
+  }
+
+  function onVentanaFocus() {
+    if (!paginaMontada) return;
+    if (temporizador.estado === 'running') ejecutarTick();
+  }
+
+  /**
+   * Segundos restantes según reloj del sistema (no según ticks del intervalo).
+   * @returns {number}
+   */
+  function calcularSegundosRestantesActuales() {
+    if (temporizador.estado === 'paused' || temporizador.estado === 'completed') {
+      return Math.max(0, temporizador.segundosRestantes);
+    }
+    if (temporizador.estado !== 'running') return 0;
+    const transcurridos = Math.floor((Date.now() - (temporizador.marcaTiempo || Date.now())) / 1000);
+    return temporizador.segundosRestantes - transcurridos;
+  }
+
+  /**
+   * Fija un nuevo ancla de tiempo (segundos restantes + marcaTiempo = ahora).
+   * @param {number} segundos
+   */
+  function anclarSegundosRestantes(segundos) {
+    temporizador.segundosRestantes = segundos;
+    temporizador.marcaTiempo = Date.now();
+  }
 
   // ========================================================================
   //  REFERENCIAS AL DOM
@@ -310,7 +364,45 @@
   }
 
   /**
-   * Bloquea las apps seleccionadas por el tiempo total del pomodoro.
+   * Estima minutos restantes de bloqueo (fase actual + fases futuras).
+   * @returns {number}
+   */
+  function estimarMinutosRestantesBloqueo() {
+    const restanteSeg = Math.max(0, calcularSegundosRestantesActuales());
+    let minutos = restanteSeg / 60;
+    const { numeroSesiones, minutosSesion, minutosDescanso } = estado;
+
+    if (temporizador.fase === 'session') {
+      const despues = numeroSesiones - temporizador.sesionActual;
+      minutos += despues * minutosSesion + despues * minutosDescanso;
+    } else {
+      const sesionesRestantes = numeroSesiones - temporizador.sesionActual;
+      minutos += sesionesRestantes * minutosSesion
+        + Math.max(0, sesionesRestantes - 1) * minutosDescanso;
+    }
+    return Math.max(1, Math.ceil(minutos));
+  }
+
+  /**
+   * Reaplica el bloqueo OS + banner App Blocker con el tiempo que queda.
+   * Útil al restaurar un Pomodoro en marcha.
+   */
+  async function reaplicarBloqueoAppsSiProcede() {
+    const procesos = obtenerAppsSeleccionadas();
+    if (procesos.length === 0) return;
+    if (temporizador.estado !== 'running' && temporizador.estado !== 'paused') return;
+    const minutos = estimarMinutosRestantesBloqueo();
+    try {
+      await window.electronAPI.bloquearApps(procesos, minutos);
+    } catch (_) { /* ignore */ }
+    if (typeof window.registrarEstadoBloqueoApps === 'function') {
+      window.registrarEstadoBloqueoApps(procesos, minutos);
+    }
+  }
+
+  /**
+   * Bloquea las apps seleccionadas por el tiempo total del pomodoro
+   * y sincroniza el banner de la página App Blocker.
    * @returns {Promise<void>}
    */
   async function bloquearAppsSeleccionadas() {
@@ -319,14 +411,20 @@
     const totalMinutos = calcularDuracionTotalMinutos();
     if (totalMinutos <= 0) return;
     await window.electronAPI.bloquearApps(procesos, totalMinutos);
+    if (typeof window.registrarEstadoBloqueoApps === 'function') {
+      window.registrarEstadoBloqueoApps(procesos, totalMinutos);
+    }
   }
 
   /**
-   * Desbloquea todas las apps bloqueadas.
+   * Desbloquea todas las apps y limpia el estado visual de App Blocker.
    * @returns {Promise<void>}
    */
   async function desbloquearTodasLasApps() {
     await window.electronAPI.desbloquearTodo();
+    if (typeof window.limpiarEstadoBloqueoApps === 'function') {
+      window.limpiarEstadoBloqueoApps();
+    }
   }
 
   // ========================================================================
@@ -397,9 +495,12 @@
    * Actualiza los elementos del temporizador en ejecución.
    */
   function actualizarVistaTemporizador() {
-    const { fase, sesionActual, descansoActual, segundosRestantes, totalSegundosFase } = temporizador;
+    const { fase, sesionActual, descansoActual, totalSegundosFase } = temporizador;
     const { numeroSesiones } = estado;
     const numeroDescansos = Math.max(0, numeroSesiones - 1);
+    const segundosRestantes = Math.max(0, calcularSegundosRestantesActuales());
+
+    if (!dom.etiquetaFase || !dom.cuentaAtras || !dom.barraProgreso) return;
 
     dom.etiquetaFase.textContent = fase === 'session'
       ? `SESIÓN ${sesionActual} de ${numeroSesiones}`
@@ -501,8 +602,10 @@
 
   /**
    * Maneja la transición entre fases cuando el tiempo llega a cero.
+   * @param {number} [deudaSegundos=0] Segundos que se pasaron del final de la fase
+   *   (útil si el intervalo se retrasó en segundo plano).
    */
-  function manejarFinFase() {
+  function manejarFinFase(deudaSegundos = 0) {
     const { numeroSesiones, minutosDescanso, minutosSesion } = estado;
 
     reproducirSonido();
@@ -511,12 +614,14 @@
       if (temporizador.sesionActual < numeroSesiones) {
         temporizador.descansoActual++;
         temporizador.fase = 'break';
-        temporizador.segundosRestantes = minutosDescanso * 60;
-        temporizador.totalSegundosFase = temporizador.segundosRestantes;
+        const duracion = minutosDescanso * 60;
+        temporizador.totalSegundosFase = duracion;
+        anclarSegundosRestantes(duracion - deudaSegundos);
       } else {
         temporizador.estado = 'completed';
         clearInterval(temporizador.idIntervalo);
         temporizador.idIntervalo = null;
+        anclarSegundosRestantes(0);
         desbloquearTodasLasApps();
         mostrarVistaTemporizador('completed');
         establecerControlesHabilitados(true);
@@ -526,8 +631,9 @@
     } else {
       temporizador.sesionActual++;
       temporizador.fase = 'session';
-      temporizador.segundosRestantes = minutosSesion * 60;
-      temporizador.totalSegundosFase = temporizador.segundosRestantes;
+      const duracion = minutosSesion * 60;
+      temporizador.totalSegundosFase = duracion;
+      anclarSegundosRestantes(duracion - deudaSegundos);
     }
 
     persistirEstadoTemporizador();
@@ -535,22 +641,29 @@
   }
 
   /**
-   * Ejecuta un tick del temporizador (cada segundo).
+   * Ejecuta un tick del temporizador.
+   * Usa reloj del sistema: aunque Chromium ralentice setInterval al minimizar,
+   * el tiempo restante y los cambios de fase se calculan correctamente.
    */
   function ejecutarTick() {
+    if (!paginaMontada) return;
     if (temporizador.estado !== 'running') return;
 
-    temporizador.segundosRestantes--;
-
-    if (temporizador.segundosRestantes <= 0) {
-      manejarFinFase();
-    } else {
-      actualizarVistaTemporizador();
+    // Recuperar fases saltadas si el tick llegó tarde (segundo plano / sleep)
+    let restante = calcularSegundosRestantesActuales();
+    let guard = 0;
+    while (restante <= 0 && temporizador.estado === 'running' && guard < 100) {
+      const deuda = -restante;
+      manejarFinFase(deuda);
+      if (temporizador.estado !== 'running') break;
+      restante = calcularSegundosRestantesActuales();
+      guard++;
     }
 
-    // Persistir en cada tick para que al navegar a otra página o al cerrar
-    // la app se pierda como máximo 1 segundo de precisión
-    persistirEstadoTemporizador();
+    if (temporizador.estado === 'running') {
+      actualizarVistaTemporizador();
+      persistirEstadoTemporizador();
+    }
   }
 
   /**
@@ -564,8 +677,8 @@
     temporizador.fase = 'session';
     temporizador.sesionActual = 1;
     temporizador.descansoActual = 0;
-    temporizador.segundosRestantes = estado.minutosSesion * 60;
-    temporizador.totalSegundosFase = temporizador.segundosRestantes;
+    temporizador.totalSegundosFase = estado.minutosSesion * 60;
+    anclarSegundosRestantes(temporizador.totalSegundosFase);
 
     mostrarVistaTemporizador('active');
     establecerControlesHabilitados(false);
@@ -574,6 +687,7 @@
     bloquearAppsSeleccionadas();
     persistirEstadoTemporizador();
 
+    if (temporizador.idIntervalo) clearInterval(temporizador.idIntervalo);
     temporizador.idIntervalo = setInterval(ejecutarTick, 1000);
   }
 
@@ -582,6 +696,8 @@
    */
   function alternarPausa() {
     if (temporizador.estado === 'running') {
+      // Congelar el restante según reloj real antes de pausar
+      anclarSegundosRestantes(Math.max(0, calcularSegundosRestantesActuales()));
       temporizador.estado = 'paused';
       clearInterval(temporizador.idIntervalo);
       temporizador.idIntervalo = null;
@@ -590,14 +706,17 @@
         Reanudar
       `;
       persistirEstadoTemporizador();
+      actualizarVistaTemporizador();
     } else if (temporizador.estado === 'paused') {
       temporizador.estado = 'running';
+      anclarSegundosRestantes(temporizador.segundosRestantes);
       temporizador.idIntervalo = setInterval(ejecutarTick, 1000);
       dom.btnPausa.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
         Pausa
       `;
       persistirEstadoTemporizador();
+      actualizarVistaTemporizador();
     }
   }
 
@@ -701,12 +820,7 @@
       },
       detener: detenerTemporizador,
       reiniciar: reiniciarTemporizador,
-      cleanup: () => {
-        if (temporizador.idIntervalo) {
-          clearInterval(temporizador.idIntervalo);
-          temporizador.idIntervalo = null;
-        }
-      },
+      cleanup: desmontarPaginaPomodoro,
     };
 
     // -- Auto-inicio desde la barra lateral --
@@ -725,12 +839,28 @@
     if (typeof window.actualizarSidebarFocusTimer === 'function') {
       window.actualizarSidebarFocusTimer();
     }
+
+    // Al volver de segundo plano / minimizar, sincronizar con el reloj real
+    document.addEventListener('visibilitychange', onVisibilidadCambio);
+    window.addEventListener('focus', onVentanaFocus);
+  }
+
+  /**
+   * Desactiva esta instancia del Pomodoro (navegación SPA).
+   * Detiene el intervalo y quita listeners para que no reescriban localStorage.
+   */
+  function desmontarPaginaPomodoro() {
+    paginaMontada = false;
+    if (temporizador.idIntervalo) {
+      clearInterval(temporizador.idIntervalo);
+      temporizador.idIntervalo = null;
+    }
+    document.removeEventListener('visibilitychange', onVisibilidadCambio);
+    window.removeEventListener('focus', onVentanaFocus);
   }
 
   function desregistrarHooksSidebar() {
-    if (typeof window.pomodoroSidebarHooks?.cleanup === 'function') {
-      window.pomodoroSidebarHooks.cleanup();
-    }
+    desmontarPaginaPomodoro();
     window.pomodoroSidebarHooks = {
       pausar: null,
       reanudar: null,
