@@ -1,6 +1,13 @@
 # Aula Personal
 
-Suite de productividad de escritorio para estudiar y trabajar con foco: bloqueo de apps, Pomodoro, notas, chat con IA (Ollama / APIs) y radio/música.
+<p align="center">
+  <img src="electron/assets/app-icon.png" alt="Aula Personal" width="160">
+</p>
+
+<p align="center">
+  Suite de productividad de escritorio para estudiar y trabajar con foco:<br>
+  bloqueo de apps, Pomodoro, notas, chat con IA (Ollama / APIs) y radio/música.
+</p>
 
 ---
 

@@ -46,17 +46,21 @@
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "electron/assets/app-icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true
+      "createDesktopShortcut": true,
+      "installerIcon": "electron/assets/app-icon.ico",
+      "uninstallerIcon": "electron/assets/app-icon.ico",
+      "installerHeaderIcon": "electron/assets/app-icon.ico"
     },
     "linux": {
       "target": ["dir"],
       "category": "Office",
-      "icon": "electron/renderer/assets/imagenes/mobile_profile.png"
+      "icon": "electron/assets/icons"
     }
   }
 }

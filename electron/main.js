@@ -174,9 +174,12 @@ function esperarBackend() {
 }
 
 function crearVentana() {
+  const iconoApp = path.join(__dirname, 'renderer', 'assets', 'imagenes', 'aula-personal-icon.png');
+
   ventanaPrincipal = new BrowserWindow({
     width: 1000,
     height: 700,
+    icon: iconoApp,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -190,8 +193,8 @@ function crearVentana() {
   // Por si la preferencia no aplica en alguna versión: forzar en webContents
   ventanaPrincipal.webContents.setBackgroundThrottling(false);
 
-  if (esLinux) {
-    ventanaPrincipal.setIcon(path.join(__dirname, 'renderer', 'assets', 'imagenes', 'mobile_profile.svg'));
+  if (fs.existsSync(iconoApp)) {
+    ventanaPrincipal.setIcon(iconoApp);
   }
 }
 
