@@ -71,9 +71,26 @@ async function prepareOllama() {
   execSync(`tar -xzf "${archive}" -C "${OLLAMA_DIR}"`, { stdio: 'inherit' });
   fs.unlinkSync(archive);
 
+  const ollamaNested = path.join(OLLAMA_DIR, 'bin', 'ollama');
   const ollamaBin = path.join(OLLAMA_DIR, 'ollama');
+  if (fs.existsSync(ollamaNested) && !fs.existsSync(ollamaBin)) {
+    fs.copyFileSync(ollamaNested, ollamaBin);
+  }
   if (fs.existsSync(ollamaBin)) {
     fs.chmodSync(ollamaBin, 0o755);
+  }
+  if (!fs.existsSync(ollamaBin)) {
+    throw new Error('binario ollama no encontrado tras extraer el tgz');
+  }
+
+  // Las libs CUDA pesan varios GB y usan symlinks que Windows no empaqueta bien.
+  // Ollama CPU sigue funcionando sin ellas.
+  for (const cudaDir of ['cuda_v11', 'cuda_v12']) {
+    const full = path.join(OLLAMA_DIR, 'lib', 'ollama', cudaDir);
+    if (fs.existsSync(full)) {
+      fs.rmSync(full, { recursive: true, force: true });
+      console.log(`Omitido ${cudaDir} (solo CPU)`);
+    }
   }
 
   console.log('Ollama Linux listo');

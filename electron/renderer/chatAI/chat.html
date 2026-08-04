@@ -1,4 +1,72 @@
 <div id="chat-app" class="relative flex h-[calc(100vh-2rem)] -m-4 bg-gray-50 overflow-hidden">
+<style>
+  /* Estilos del markdown en respuestas del asistente */
+  .chat-md { overflow-wrap: anywhere; }
+  .chat-md > *:first-child { margin-top: 0; }
+  .chat-md > *:last-child { margin-bottom: 0; }
+  .chat-md p { margin: 0.4em 0; }
+  .chat-md h1, .chat-md h2, .chat-md h3, .chat-md h4 {
+    font-weight: 600;
+    margin: 0.75em 0 0.35em;
+    line-height: 1.3;
+    color: #1f2937;
+  }
+  .chat-md h1 { font-size: 1.15rem; }
+  .chat-md h2 { font-size: 1.05rem; }
+  .chat-md h3 { font-size: 1rem; }
+  .chat-md ul, .chat-md ol { margin: 0.4em 0; padding-left: 1.25rem; }
+  .chat-md li { margin: 0.15em 0; }
+  .chat-md ul { list-style: disc; }
+  .chat-md ol { list-style: decimal; }
+  .chat-md a { color: #1d4ed8; text-decoration: underline; }
+  .chat-md strong { font-weight: 600; }
+  .chat-md em { font-style: italic; }
+  .chat-md blockquote {
+    border-left: 3px solid #cbd5e1;
+    padding-left: 0.75rem;
+    margin: 0.5em 0;
+    color: #4b5563;
+  }
+  .chat-md code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.85em;
+    background: #e5e7eb;
+    padding: 0.1em 0.35em;
+    border-radius: 0.3rem;
+  }
+  .chat-md pre {
+    background: #111827;
+    color: #f3f4f6;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    overflow-x: auto;
+    margin: 0.6em 0;
+  }
+  .chat-md pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+  .chat-md table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.6em 0;
+    font-size: 0.85em;
+  }
+  .chat-md th, .chat-md td {
+    border: 1px solid #d1d5db;
+    padding: 0.35rem 0.5rem;
+    text-align: left;
+  }
+  .chat-md th { background: #e5e7eb; font-weight: 600; }
+  .chat-md hr {
+    border: 0;
+    border-top: 1px solid #d1d5db;
+    margin: 0.75em 0;
+  }
+</style>
 
   <!-- Contenido del chat (visible pero deshabilitado durante la descarga) -->
   <div id="chat-contenido" class="flex flex-1 min-w-0 transition-opacity duration-300">

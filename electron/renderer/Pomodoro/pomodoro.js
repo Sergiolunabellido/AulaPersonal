@@ -81,6 +81,9 @@
         minutosDescanso: estado.minutosDescanso,
       },
     }));
+    if (typeof window.actualizarSidebarFocusTimer === 'function') {
+      window.actualizarSidebarFocusTimer();
+    }
   }
 
   /**
@@ -103,6 +106,9 @@
    */
   function limpiarEstadoTemporizador() {
     localStorage.removeItem(CLAVE_TEMPORIZADOR);
+    if (typeof window.actualizarSidebarFocusTimer === 'function') {
+      window.actualizarSidebarFocusTimer();
+    }
   }
 
   /**
@@ -187,7 +193,7 @@
             mostrarVistaTemporizador('completed');
             establecerControlesHabilitados(true);
             actualizarVistaPrevia();
-            limpiarEstadoTemporizador();
+            persistirEstadoTemporizador();
             return true;
           }
         } else {
@@ -514,7 +520,7 @@
         desbloquearTodasLasApps();
         mostrarVistaTemporizador('completed');
         establecerControlesHabilitados(true);
-        limpiarEstadoTemporizador();
+        persistirEstadoTemporizador();
         return;
       }
     } else {
@@ -685,11 +691,68 @@
     dom.btnDetener.addEventListener('click', detenerTemporizador);
     dom.btnReiniciar.addEventListener('click', reiniciarTemporizador);
 
+    // Hooks para el widget de la barra lateral
+    window.pomodoroSidebarHooks = {
+      pausar: () => {
+        if (temporizador.estado === 'running') alternarPausa();
+      },
+      reanudar: () => {
+        if (temporizador.estado === 'paused') alternarPausa();
+      },
+      detener: detenerTemporizador,
+      reiniciar: reiniciarTemporizador,
+      cleanup: () => {
+        if (temporizador.idIntervalo) {
+          clearInterval(temporizador.idIntervalo);
+          temporizador.idIntervalo = null;
+        }
+      },
+    };
+
     // -- Auto-inicio desde la barra lateral --
     if (window.iniciarPomodoroAuto) {
       window.iniciarPomodoroAuto = false;
-      iniciarTemporizador();
+      // Si ya había un temporizador restaurado en marcha, no reiniciar
+      if (temporizador.estado === 'running' || temporizador.estado === 'paused') {
+        mostrarVistaTemporizador('active');
+      } else {
+        iniciarTemporizador();
+      }
+      const panel = document.getElementById('timer-panel');
+      if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+
+    if (typeof window.actualizarSidebarFocusTimer === 'function') {
+      window.actualizarSidebarFocusTimer();
+    }
+  }
+
+  function desregistrarHooksSidebar() {
+    if (typeof window.pomodoroSidebarHooks?.cleanup === 'function') {
+      window.pomodoroSidebarHooks.cleanup();
+    }
+    window.pomodoroSidebarHooks = {
+      pausar: null,
+      reanudar: null,
+      detener: null,
+      reiniciar: null,
+      cleanup: null,
+    };
+  }
+
+  // Al salir de la página (SPA), desregistrar hooks y parar el intervalo en memoria
+  // (el estado sigue en localStorage para el widget de la barra lateral)
+  window.addEventListener('beforeunload', desregistrarHooksSidebar);
+
+  const observadorApp = new MutationObserver(() => {
+    if (!document.getElementById('pomodoro-app')) {
+      desregistrarHooksSidebar();
+      observadorApp.disconnect();
+    }
+  });
+  const appRoot = document.getElementById('app');
+  if (appRoot) {
+    observadorApp.observe(appRoot, { childList: true });
   }
 
   if (document.readyState === 'loading') {

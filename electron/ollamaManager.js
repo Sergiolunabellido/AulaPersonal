@@ -20,16 +20,22 @@ function obtenerDirectorioModelos() {
 
 function obtenerRutaOllama() {
   if (app.isPackaged) {
-    const empaquetado = path.join(
-      process.resourcesPath,
-      'ollama',
-      esWindows ? 'ollama.exe' : 'ollama'
-    );
-    if (fs.existsSync(empaquetado)) return empaquetado;
+    const candidatos = [
+      path.join(process.resourcesPath, 'ollama', esWindows ? 'ollama.exe' : 'ollama'),
+      path.join(process.resourcesPath, 'ollama', 'bin', esWindows ? 'ollama.exe' : 'ollama'),
+    ];
+    for (const candidato of candidatos) {
+      if (fs.existsSync(candidato)) return candidato;
+    }
   }
 
-  const localBuild = path.join(__dirname, '..', 'build', 'ollama', esWindows ? 'ollama.exe' : 'ollama');
-  if (fs.existsSync(localBuild)) return localBuild;
+  const localCandidatos = [
+    path.join(__dirname, '..', 'build', 'ollama', esWindows ? 'ollama.exe' : 'ollama'),
+    path.join(__dirname, '..', 'build', 'ollama', 'bin', esWindows ? 'ollama.exe' : 'ollama'),
+  ];
+  for (const candidato of localCandidatos) {
+    if (fs.existsSync(candidato)) return candidato;
+  }
 
   return esWindows ? 'ollama.exe' : 'ollama';
 }

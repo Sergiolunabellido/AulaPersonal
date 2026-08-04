@@ -169,6 +169,34 @@
         return d.innerHTML;
     }
 
+    /**
+     * Convierte markdown del LLM a HTML seguro.
+     * marked → HTML; DOMPurify → evita XSS si el modelo inventa tags maliciosos.
+     * Si las libs no cargaron, cae a texto plano escapado.
+     */
+    function formatearMarkdown(texto) {
+        if (texto == null) return '';
+        const crudo = String(texto);
+
+        if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+            return escaparHTML(crudo).replace(/\n/g, '<br>');
+        }
+
+        try {
+            if (typeof marked.setOptions === 'function') {
+                marked.setOptions({ breaks: true, gfm: true });
+            }
+            const html = typeof marked.parse === 'function'
+                ? marked.parse(crudo)
+                : marked(crudo);
+            return DOMPurify.sanitize(html, {
+                USE_PROFILES: { html: true },
+            });
+        } catch (_) {
+            return escaparHTML(crudo).replace(/\n/g, '<br>');
+        }
+    }
+
     function formatearFecha(fechaStr) {
         if (!fechaStr) return '';
         const d = new Date(fechaStr);
@@ -1142,16 +1170,24 @@
         div.className = 'flex mb-4 ' + (rol === 'user' ? 'justify-end' : 'justify-start');
 
         if (rol === 'user') {
+            // Usuario: texto plano (sin markdown) para no interpretar lo que escribe
             div.innerHTML =
                 '<div class="max-w-[85%] px-4 py-3 rounded-2xl rounded-br-md bg-blue-800 text-white text-sm leading-relaxed whitespace-pre-wrap shadow-sm">' +
                 escaparHTML(contenido) + '</div>';
         } else {
+            // Asistente: markdown formateado (código, listas, negritas…)
+            const esError = typeof contenido === 'string' && contenido.trim().startsWith('Error');
+            const cuerpo = esError
+                ? escaparHTML(contenido)
+                : formatearMarkdown(contenido);
+
             div.innerHTML =
                 '<div class="flex gap-3 max-w-[85%]">' +
                 '<div class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 mt-0.5">' +
                 '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-blue-600"><path d="M6 6a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -4"/><path d="M9 18h6"/></svg></div>' +
-                '<div class="px-4 py-3 rounded-2xl rounded-bl-md bg-gray-100 text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">' +
-                escaparHTML(contenido) + '</div></div>';
+                '<div class="px-4 py-3 rounded-2xl rounded-bl-md bg-gray-100 text-gray-800 text-sm leading-relaxed ' +
+                (esError ? 'whitespace-pre-wrap text-red-600' : 'chat-md') + '">' +
+                cuerpo + '</div></div>';
         }
 
         dom.mensajes.appendChild(div);

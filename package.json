@@ -8,7 +8,7 @@
     "build:backend": "node scripts/build-backend.js",
     "build:ollama": "node scripts/build-ollama.js",
     "build": "npm run build:backend && npm run build:ollama && node scripts/verify-packaging-resources.js && npx electron-builder",
-    "build:linux": "npm run build:backend && npm run build:ollama && node scripts/prepare-linux-resources.js && node scripts/verify-packaging-resources.js && npx electron-builder --linux dir",
+    "build:linux": "npm run build:backend && node scripts/prepare-linux-resources.js && node scripts/verify-packaging-resources.js --linux && npx electron-builder --linux dir && node scripts/zip-linux-dist.js",
     "build:win": "npm run build:backend && npm run build:ollama && node scripts/verify-packaging-resources.js && npx electron-builder --win",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
