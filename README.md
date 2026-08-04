@@ -1,7 +1,5 @@
 # Aula Personal
 
-<img width="2048" height="2048" alt="Gemini_Generated_Image_e0ldrse0ldrse0ld" src="https://github.com/user-attachments/assets/78b6bed4-4255-426d-909c-496ba4daff6a" />
-
 Suite de productividad de escritorio para estudiar y trabajar con foco: bloqueo de apps, Pomodoro, notas, chat con IA (Ollama / APIs) y radio/música.
 
 ---
