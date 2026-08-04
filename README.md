@@ -167,6 +167,7 @@ AulaPersonal/
 
 - MCPs y Skills en el chat con IA
 - Modelos gratuitos alojados en nube para equipos modestos
+- Adición de MCPs y Skills para usar en el Chat AI
 
 ---
 
