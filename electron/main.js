@@ -177,8 +177,10 @@ function crearVentana() {
   const iconoApp = path.join(__dirname, 'renderer', 'assets', 'imagenes', 'aula-personal-icon.png');
 
   ventanaPrincipal = new BrowserWindow({
-    width: 1000,
-    height: 700,
+    width: 1280,
+    height: 800,
+    minWidth: 720,
+    minHeight: 520,
     icon: iconoApp,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

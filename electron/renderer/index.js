@@ -280,10 +280,30 @@ function mostrarVistaSidebarFocus(vista) {
     const idle = document.getElementById('sidebar-focus-idle');
     const active = document.getElementById('sidebar-focus-active');
     const completed = document.getElementById('sidebar-focus-completed');
-    if (!idle || !active || !completed) return;
-    idle.classList.toggle('hidden', vista !== 'idle');
-    active.classList.toggle('hidden', vista !== 'active');
-    completed.classList.toggle('hidden', vista !== 'completed');
+    const btnFocusMobile = document.getElementById('btn-focus-mobile');
+    const mobileSlot = document.getElementById('mobile-focus-slot');
+    const mobileActive = document.getElementById('mobile-focus-active');
+    const mobileCompleted = document.getElementById('mobile-focus-completed');
+
+    if (idle && active && completed) {
+        idle.classList.toggle('hidden', vista !== 'idle');
+        active.classList.toggle('hidden', vista !== 'active');
+        completed.classList.toggle('hidden', vista !== 'completed');
+    }
+
+    if (btnFocusMobile) {
+        if (vista === 'idle') {
+            btnFocusMobile.classList.remove('hidden');
+        } else {
+            btnFocusMobile.classList.add('hidden');
+        }
+    }
+
+    if (mobileSlot) {
+        mobileSlot.classList.toggle('hidden', vista === 'idle');
+    }
+    if (mobileActive) mobileActive.classList.toggle('hidden', vista !== 'active');
+    if (mobileCompleted) mobileCompleted.classList.toggle('hidden', vista !== 'completed');
 }
 
 function pintarSidebarFocusDesdeEstado(guardado) {
@@ -334,15 +354,23 @@ function pintarSidebarFocusDesdeEstado(guardado) {
         progressEl.className = 'h-1.5 rounded-full transition-all duration-700 ease-linear ' +
             (fase === 'session' ? 'bg-blue-600' : 'bg-green-500');
     }
-    if (pauseBtn) {
-        if (guardado.estado === 'paused') {
-            pauseBtn.innerHTML =
-                '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Reanudar';
-        } else {
-            pauseBtn.innerHTML =
-                '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg> Pausa';
-        }
+    const pauseHtml = guardado.estado === 'paused'
+        ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Reanudar'
+        : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg> Pausa';
+    if (pauseBtn) pauseBtn.innerHTML = pauseHtml;
+
+    // Espejo en widget móvil
+    const mPhase = document.getElementById('mobile-focus-phase');
+    const mCd = document.getElementById('mobile-focus-countdown');
+    const mProg = document.getElementById('mobile-focus-progress');
+    const mPause = document.getElementById('mobile-focus-pause');
+    if (mPhase && phaseEl) mPhase.textContent = phaseEl.textContent;
+    if (mCd && countdownEl) mCd.textContent = countdownEl.textContent;
+    if (mProg && progressEl) {
+        mProg.style.width = progressEl.style.width;
+        mProg.className = progressEl.className;
     }
+    if (mPause) mPause.innerHTML = pauseHtml;
 }
 
 function actualizarSidebarFocusTimer() {
