@@ -17,6 +17,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Adapter para Anthropic: implementa listarModelos y completarChat usando
+ * los headers y formatos nativos de Anthropic.
+ */
 @Component
 public class AnthropicProvider implements AiProvider {
 

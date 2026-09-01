@@ -8,16 +8,28 @@ const esWindows = process.platform === 'win32';
 const OLLAMA_HOST = '127.0.0.1:11434';
 const OLLAMA_BASE_URL = 'http://127.0.0.1:11434';
 
+// Proceso en background que ejecuta 'ollama serve'
 let procesoOllama = null;
+// Último error detectado en arrancar/operar Ollama
 let ultimoErrorOllama = null;
+// Stream de log opcional (escrito en app userData)
 let logStream = null;
 
+/**
+ * Ruta donde Ollama almacenará los modelos locales (dentro de userData).
+ */
 function obtenerDirectorioModelos() {
   const dir = path.join(app.getPath('userData'), 'ollama', 'models');
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
 
+/**
+ * Intenta resolver la ruta al binario de Ollama.
+ * - Si la app está empaquetada busca en resources
+ * - En desarrollo busca en build/ollama
+ * - Si no se encuentra, cae al nombre del binario del PATH
+ */
 function obtenerRutaOllama() {
   if (app.isPackaged) {
     const candidatos = [
@@ -40,11 +52,18 @@ function obtenerRutaOllama() {
   return esWindows ? 'ollama.exe' : 'ollama';
 }
 
+/**
+ * Escribe una línea en el logStream si existe.
+ */
 function escribirLog(mensaje) {
   if (!logStream) return;
   logStream.write(`[${new Date().toISOString()}] ${mensaje}\n`);
 }
 
+/**
+ * Comprueba si el servicio Ollama responde al endpoint /api/tags.
+ * Retorna promise<boolean>.
+ */
 function comprobarOllamaOnline() {
   return new Promise((resolve) => {
     const req = http.get(`${OLLAMA_BASE_URL}/api/tags`, (res) => {
@@ -72,6 +91,12 @@ function esperarOllama(maxIntentos = 30) {
   });
 }
 
+/**
+ * Inicia el proceso Ollama (ollama serve) si no está ya online.
+ * - Crea log si se pasa logDir
+ * - Lanza el proceso y espera hasta que el endpoint responda
+ * Retorna objeto con { started, online, error }
+ */
 async function iniciarOllama(opciones = {}) {
   ultimoErrorOllama = null;
 

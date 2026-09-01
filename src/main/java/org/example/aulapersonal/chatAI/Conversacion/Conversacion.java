@@ -5,6 +5,11 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "conversacion")
+/**
+ * Entidad que representa una conversación (sesión de chat) y su snapshot de
+ * configuración. El frontend crea una Conversacion antes de enviar mensajes
+ * (POST /api/chat/sessions) y el servicio actualiza su título cuando procede.
+ */
 public class Conversacion {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,15 +27,18 @@ public class Conversacion {
 
     @PrePersist
     public void onCreate() {
+        // Inicializa created/updated timestamps al persistir por primera vez
         this.creadoEn = LocalDateTime.now();
         this.actualizadoEn = LocalDateTime.now();
     }
 
     @PreUpdate
     public void onUpdate() {
+        // Actualiza timestamp antes de cada update en BD
         this.actualizadoEn = LocalDateTime.now();
     }
 
+    // Getters / setters utilizados por servicios y controladores
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getTitulo() { return titulo; }

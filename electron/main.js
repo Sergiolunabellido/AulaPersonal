@@ -8,9 +8,13 @@ const { ejecutarSetupInicial, obtenerEstadoSetup } = require('./ollamaSetup');
 const esWindows = process.platform === 'win32';
 const esLinux = process.platform === 'linux';
 
+// Timer used to repeatedly kill blocked processes while a focus session is active
 let intervaloBloqueo = null;
+// Child process that runs the Spring Boot backend (java -jar ...)
 let procesoBackend = null;
+// Main BrowserWindow instance
 let ventanaPrincipal = null;
+// Estado de arranque del backend expuesto vía IPC
 let estadoBackend = {
   online: false,
   error: null,
@@ -19,12 +23,19 @@ let estadoBackend = {
   logFile: null,
 };
 
+/**
+ * Devuelve el directorio de logs dentro de userData, creando si es necesario.
+ */
 function obtenerDirLogs() {
   const dir = path.join(app.getPath('userData'), 'logs');
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
 
+/**
+ * Crea un escritor de logs para el backend/electron.
+ * Retorna objeto con ruta de fichero, stream y función stamp.
+ */
 function crearEscritorLog(nombre) {
   const logFile = path.join(obtenerDirLogs(), nombre);
   const stream = fs.createWriteStream(logFile, { flags: 'a' });
@@ -33,6 +44,12 @@ function crearEscritorLog(nombre) {
   return { logFile, stream, stamp };
 }
 
+/**
+ * Determina la ruta al ejecutable java a usar:
+ * - Si la app está empaquetada intenta usar el JRE incluido en resources
+ * - En desarrollo intenta usar build/jre si existe
+ * - En último caso cae al 'java' del PATH
+ */
 function obtenerJavaEjecutable() {
   if (app.isPackaged) {
     const rutaJre = path.join(process.resourcesPath, 'jre', 'bin');
@@ -45,6 +62,9 @@ function obtenerJavaEjecutable() {
   return 'java';
 }
 
+/**
+ * Devuelve la ruta al JAR del backend según si la app está empaquetada o en desarrollo.
+ */
 function obtenerRutaJar() {
   const nombreJar = 'AulaPersonal-0.0.1-SNAPSHOT.jar';
   if (app.isPackaged) {
@@ -53,6 +73,10 @@ function obtenerRutaJar() {
   return path.join(__dirname, '..', 'build', 'libs', nombreJar);
 }
 
+/**
+ * Mata procesos por nombre en Windows (taskkill) o en Unix (pkill -f).
+ * Usado por el mecanismo de bloqueo de apps para impedir ejecución.
+ */
 function matarProceso(nombre) {
   if (esWindows) {
     execFile('taskkill', ['/F', '/IM', `${nombre}.exe`, '/T'], { windowsHide: true }, () => {});
@@ -61,6 +85,9 @@ function matarProceso(nombre) {
   }
 }
 
+/**
+ * Muestra un dialog de error de arranque e incluye pista del fichero de log si hay.
+ */
 function mostrarErrorArranque(titulo, detalle) {
   const logHint = estadoBackend.logFile
     ? `\n\nRegistro: ${estadoBackend.logFile}`
@@ -68,6 +95,13 @@ function mostrarErrorArranque(titulo, detalle) {
   dialog.showErrorBox(titulo, `${detalle}${logHint}`);
 }
 
+/**
+ * Arranca el backend Spring Boot ejecutando el JAR con java.
+ * - Compone la ruta del JRE/JAR
+ * - Crea un proceso hijo y redirige stdout/stderr a un fichero de log
+ * - Espera una comprobación health check a /api/notas
+ * Retorna true si el backend quedó online.
+ */
 async function iniciarBackend() {
   const javaExe = obtenerJavaEjecutable();
   const rutaJar = obtenerRutaJar();
@@ -140,6 +174,39 @@ async function iniciarBackend() {
   return false;
 }
 
+/**
+ * Detiene el backend comprobando el estado del proceso y creando una promesa a la que se tenga que esperar para que el
+ * proceso este muerto antes de cerrar.
+ * */
+
+function detenerBackend(){
+  return new Promise((resolve) => {
+    if(!procesoBackend)return resolve();
+    const p = procesoBackend;
+    let timer;
+    procesoBackend = null;
+    if(p.exitCode != null)return resolve();
+    if(esWindows) {
+      execFile('taskkill',['/F', '/T', '/PID' ,String(p.pid)], () => {console.log('CAMINO: callback de taskkill');resolve()});
+    }else{
+      p.kill('SIGKILL');
+    }
+    p.once('exit', () => {
+      console.log('CAMINO: evento exit')
+      clearTimeout(timer);
+      resolve();
+    });
+    timer = setTimeout(() => {
+      console.log('CAMINO: timeout 5s')
+      resolve();
+    }, 5000);
+  })
+}
+
+/**
+ * Espera hasta que el endpoint http://localhost:8080/api/notas responda 200.
+ * Se usa durante el arranque para confirmar que el backend arrancó correctamente.
+ */
 function esperarBackend() {
   return new Promise((resolve) => {
     const http = require('http');
@@ -173,6 +240,11 @@ function esperarBackend() {
   });
 }
 
+/**
+ * Crea la ventana principal BrowserWindow y carga el renderer index.html.
+ * Configura preload y desactiva throttling de fondo para que el Pomodoro siga
+ * funcionando al minimizar.
+ */
 function crearVentana() {
   const iconoApp = path.join(__dirname, 'renderer', 'assets', 'imagenes', 'aula-personal-icon.png');
 
@@ -200,13 +272,14 @@ function crearVentana() {
   }
 }
 
+/** IPC handlers expuestos al renderer a través de preload. */
 ipcMain.handle('obtener-icono', async (_event, ruta) => {
-  try {
-    const icono = await app.getFileIcon(ruta, { size: 'small' });
-    return icono.toDataURL();
-  } catch (_) {
-    return '';
-  }
+    try {
+        const icono = await app.getFileIcon(ruta, { size: 'small' });
+        return icono.toDataURL();
+    } catch (_) {
+        return '';
+    }
 });
 
 ipcMain.handle('backend-status', () => ({ ...estadoBackend }));
@@ -243,6 +316,11 @@ ipcMain.handle('obtener-api-key', (_event, encryptedBase64) => {
   }
 });
 
+/**
+ * IPC: bloquear-apps
+ * - Lanza un interval que intenta matar procesos por nombre cada 2s durante
+ *   la duración pedida. Esto implementa el bloqueo de aplicaciones del Pomodoro.
+ */
 ipcMain.handle('bloquear-apps', (_event, nombresApps, minutos) => {
   if (intervaloBloqueo) clearInterval(intervaloBloqueo);
 
@@ -286,15 +364,19 @@ app.whenReady().then(async () => {
   });
 });
 
-app.on('will-quit', () => {
+
+let cerrado = false;
+app.on('will-quit', (e) => {
   detenerOllama();
-  if (procesoBackend) {
-    procesoBackend.kill();
-    procesoBackend = null;
-  }
+  if (cerrado) return;
+  e.preventDefault();
+  cerrado = true;
+  detenerBackend().finally(()=> app.quit());
+
 });
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', (e) => {
+  e.preventDefault();
   if (process.platform !== 'darwin') {
     app.quit();
   }

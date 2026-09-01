@@ -9,12 +9,20 @@ const SETUP_VERSION = 2;
 const MODELOS_DEFECTO = ['qwen2.5-coder:1.5b', 'qwen2.5-coder:3b', 'qwen2.5-coder:7b'];
 const MODELO_FALLBACK = 'qwen2.5-coder:3b';
 
+// Flag que indica si la instalación automática de modelos está en progreso
 let setupEnProgreso = false;
 
+/**
+ * Ruta del fichero que marca la finalización del setup de modelos.
+ */
 function obtenerRutaSetup() {
   return path.join(app.getPath('userData'), 'ollama', 'setup-complete.json');
 }
 
+/**
+ * Comprueba si el setup ya fue completado anteriormente y coincide con la
+ * versión esperada. Esto evita volver a descargar modelos si ya están instalados.
+ */
 function setupCompletado() {
   try {
     const data = JSON.parse(fs.readFileSync(obtenerRutaSetup(), 'utf8'));
@@ -127,6 +135,12 @@ function pullModelo(nombre, onProgress) {
   });
 }
 
+/**
+ * Ejecuta la instalación inicial de modelos locales en Ollama.
+ * - Omite la operación si la variable de entorno OLLAMA_SKIP_SETUP está activada
+ * - Si los modelos ya están instalados marca el setup como completado
+ * - Emite progreso a las ventanas a través de IPC (ollama-setup-progress)
+ */
 async function ejecutarSetupInicial() {
   if (process.env.OLLAMA_SKIP_SETUP === '1') {
     emitirProgreso({ fase: 'completo', skipped: true });

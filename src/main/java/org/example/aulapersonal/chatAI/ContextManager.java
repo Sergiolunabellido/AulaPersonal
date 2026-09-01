@@ -10,12 +10,31 @@ import java.util.List;
 import java.util.Map;
 
 @Component
+/**
+ * Gestor de contexto para las peticiones a proveedores AI.
+ *
+ * Calcula el "prepared context" que determina qué historial se envía al modelo,
+ * qué modelo usar (resolver modelo instalado) y el presupuesto de tokens.
+ *
+ * Funciona con ChatRequestConfig, el historial de Mensaje y la lista de modelos
+ * instalados en Ollama. Su salida {@link PreparedContext} es consumida por
+ * {@link org.example.aulapersonal.chatAI.ChatService} antes de invocar al proveedor.
+ */
 public class ContextManager {
 
     private static final int RESERVA_RESPUESTA = 2048;
     private static final int OVERHEAD_SISTEMA = 250;
     private static final double FACTOR_USO_VENTANA = 0.78;
 
+    /**
+     * Estructura retornada por {@link #preparar}:
+     * - config: la config ajustada (modelo/endpoint)
+     * - historial: lista de mensajes realmente enviada al proveedor
+     * - tokensUsados: estimación de tokens del historial enviado
+     * - contextoMaximo: límite de contexto del modelo resuelto
+     * - modeloResuelto: id del modelo elegido
+     * - historialRecortado: si el historial fue recortado para caber en el presupuesto
+     */
     public record PreparedContext(
             ChatRequestConfig config,
             List<Mensaje> historial,
@@ -25,6 +44,14 @@ public class ContextManager {
             boolean historialRecortado
     ) {}
 
+    /**
+     * Prepara el contexto a enviar al modelo:
+     * - Ajusta el modelo si estamos en provider=ollama y hay modelos instalados
+     * - Calcula presupuesto de tokens y recorta historial si excede
+     * - Si modoAuto está activo, selecciona automáticamente el mejor candidato local
+     *
+     * Caller: {@link org.example.aulapersonal.chatAI.ChatService#enviarMensajeAI}
+     */
     public PreparedContext preparar(
             ChatRequestConfig config,
             List<Mensaje> historial,
@@ -57,6 +84,11 @@ public class ContextManager {
         );
     }
 
+    /**
+     * Resuelve el nombre del modelo instalado más apropiado.
+     * - Si el preferido está instalado lo devuelve (coincidencias por prefijo)
+     * - Si no, prioriza modelos 'coder' con mayor contexto
+     */
     public String resolverModeloInstalado(String modeloPreferido, List<String> modelosInstalados) {
         if (modelosInstalados == null || modelosInstalados.isEmpty()) {
             return modeloPreferido;
@@ -76,6 +108,7 @@ public class ContextManager {
         return modelosInstalados.get(0);
     }
 
+    /** Comprueba si un modelo (por id o prefijo) está entre los instalados. */
     public boolean modeloEstaInstalado(String modelo, List<String> instalados) {
         if (modelo == null || instalados == null || instalados.isEmpty()) {
             return false;

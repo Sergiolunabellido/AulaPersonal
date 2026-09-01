@@ -4,9 +4,7 @@ Aula Personal is a desktop productivity app for students and remote workers. It 
 
 ## Key Links
 - README: README.md
-- Documentation: DOCUMENTACION.md
-- Design Specs: docs/superpowers/specs/
-- Implementation Plans: docs/superpowers/plans/
+- Agent instructions: AGENTS.md
 
 ## Tech Stack
 - **Frontend**: Electron 42, Vanilla JavaScript, Tailwind CSS (CDN)

@@ -6,6 +6,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/**
+ * Adaptador para proveedores compatibles OpenAI del tipo Mistral.
+ * Actualmente delega en la implementación genérica {@link OpenAiCompatibleProvider}.
+ */
 @Component
 public class MistralProvider extends OpenAiCompatibleProvider {
 

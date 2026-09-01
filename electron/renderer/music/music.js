@@ -1,41 +1,64 @@
+/**
+ * Music Player - Reproductor de radio en vivo
+ *
+ * Funcionalidad:
+ * - Buscar emisoras de radio via backend (RadioBrowser API integrada)
+ * - Reproducir emisoras en streaming de audio HTML5
+ * - Control de volumen y silenciado
+ * - Mostrar información de la estación en curso
+ *
+ * Flujo:
+ * 1. Backend: GET /api/musica/radios → lista de emisoras (datos de RadioBrowser)
+ * 2. Frontend: renderiza grid de emisoras con iconos
+ * 3. Usuario clickea "Reproducir" → window.reproducirEmisora(index)
+ * 4. Se establece audio.src = emisora.url_resolved y se inicia reproducción
+ *
+ * El reproductor persiste en window.__radioPlayer para mantener estado
+ * si el usuario navega a otras páginas (SPA).
+ */
 (function () {
     'use strict';
 
     var API_BASE = 'http://localhost:8080/api/musica';
 
+    /**
+     * Reproductor global persistente.
+     * Se inicializa una sola vez y reutiliza en navegaciones SPA.
+     */
     if (!window.__radioPlayer) {
         window.__radioPlayer = {
-            audio: new Audio(),
-            currentStation: null,
-            isPlaying: false,
-            volume: 0.8,
-            muted: false,
-            ready: false
+            audio: new Audio(),              // Elemento <audio> HTML5
+            currentStation: null,            // Estación actual { name, meta, favicon, url }
+            isPlaying: false,               // Estado de reproducción
+            volume: 0.8,                    // Volumen (0.0 - 1.0)
+            muted: false,                   // Silenciado
+            ready: true                     // Listo para usar
         };
 
         var p = window.__radioPlayer;
         var a = p.audio;
         a.volume = p.volume;
 
+        // Listeners de evento del audio HTML5
         a.addEventListener('error', function () {
             p.isPlaying = false;
             var btn = document.getElementById('btn-play');
-            if (btn) btn.textContent = '\u25B6\uFE0F';
+            if (btn) btn.textContent = '▶️';
         });
         a.addEventListener('ended', function () {
             p.isPlaying = false;
             var btn = document.getElementById('btn-play');
-            if (btn) btn.textContent = '\u25B6\uFE0F';
+            if (btn) btn.textContent = '▶️';
         });
         a.addEventListener('play', function () {
             p.isPlaying = true;
             var btn = document.getElementById('btn-play');
-            if (btn) btn.textContent = '\u23F8\uFE0F';
+            if (btn) btn.textContent = '⏸️';
         });
         a.addEventListener('pause', function () {
             p.isPlaying = false;
             var btn = document.getElementById('btn-play');
-            if (btn) btn.textContent = '\u25B6\uFE0F';
+            if (btn) btn.textContent = '▶️';
         });
         p.ready = true;
     }
@@ -43,9 +66,9 @@
     var player = window.__radioPlayer;
     var audio = player.audio;
 
-    var allStations = [];
-    var searchQuery = '';
-    var searchTimeout = null;
+    var allStations = [];        // Lista de emisoras cargadas del backend
+    var searchQuery = '';        // Término de búsqueda actual
+    var searchTimeout = null;    // Debounce timer para búsqueda
 
     function $(id) { return document.getElementById(id); }
 

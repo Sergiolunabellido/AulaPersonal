@@ -1,3 +1,28 @@
+/**
+ * Chat AI - Cliente de chat con soporte para múltiples modelos LLM
+ *
+ * Arquitectura:
+ * - MODO AUTO (recomendado): elige automáticamente el mejor modelo local (Ollama)
+ *   y recorta el historial si excede la ventana de contexto
+ * - MODO MANUAL: usuario selecciona modelo específico (gratuito Ollama o de pago via API key)
+ *
+ * Flujo de comunicación:
+ * 1. Seleccionar modelo (dropdown)
+ * 2. Si requiere API key, guardarla encriptada via IPC (window.electronAPI.guardarApiKey)
+ * 3. Enviar mensaje → POST /api/chat/sessions/{sessionId}/messages
+ * 4. Backend retorna: respuesta + modelo resuelto + contexto recortado (si aplica)
+ * 5. Renderizar mensaje asistente con markdown formateado
+ *
+ * Almacenamiento:
+ * - localStorage: configuración (modelo seleccionado, API keys encriptadas)
+ * - H2 database: sesiones (Conversacion) y mensajes (Mensaje) persistidos en backend
+ *
+ * Componentes principales:
+ * - Dropdown de modelos: gratuitos (Ollama) | de pago (OpenAI, Anthropic, etc.) | Auto
+ * - Panel de API key: guardar/validar claves encriptadas
+ * - Indicador de contexto: anillo de progreso mostrando tokens usados vs máximo
+ * - Historial de sesiones: sidebar con conversaciones previas
+ */
 (function () {
     'use strict';
 
@@ -5,6 +30,7 @@
     const CLAVE_CONFIG = 'chat-config';
     const OLLAMA_ENDPOINT = 'http://localhost:11434';
 
+    // Modelo especial para modo automático
     const MODELO_AUTO = {
         id: 'auto',
         nombre: 'Auto',
@@ -13,6 +39,7 @@
         contextoMaximo: 128000,
     };
 
+    // Estado de configuración persistido en localStorage
     let config = {
         modeloId: '',
         provider: 'ollama',
@@ -24,20 +51,25 @@
         modoAuto: true,
     };
 
-    let modelosGratuitos = [];
-    let modelosDePago = [];
-    let proveedoresDePago = [];
-    let modeloActivo = null;
-    let sesionActiva = null;
-    let mensajesSesion = [];
-    let modeloResueltoInfo = null;
-    let contextoGestionadoAuto = false;
+    // Estado en tiempo de ejecución
+    let modelosGratuitos = [];    // Modelos Ollama disponibles
+    let modelosDePago = [];       // Modelos de proveedores pagos (OpenAI, etc.)
+    let proveedoresDePago = [];   // Lista de proveedores (OpenAI, Anthropic, etc.)
+    let modeloActivo = null;      // Modelo seleccionado actualmente
+    let sesionActiva = null;      // Conversacion actual (id, titulo)
+    let mensajesSesion = [];      // Mensajes de la sesión actual
+    let modeloResueltoInfo = null;// Info del modelo resuelto en modo Auto
+    let contextoGestionadoAuto = false; // Flag: historial fue recortado
     let dropdownModelosAbierto = false;
-    let enviando = false;
-    let setupActivo = false;
+    let enviando = false;         // Flag: esperando respuesta del servidor
+    let setupActivo = false;      // Flag: setup de Ollama en curso
 
     const dom = {};
 
+    /**
+     * Obtiene referencias al DOM.
+     * Se llama en inicializar() para mapear elementos.
+     */
     function obtenerDom() {
         dom.historial = document.getElementById('chat-historial');
         dom.mensajes = document.getElementById('chat-mensajes');
@@ -70,6 +102,9 @@
         dom.contextoRingProgreso = document.getElementById('contexto-ring-progreso');
     }
 
+    /**
+     * Bloquea la interfaz durante setup de Ollama (descarga de modelos).
+     */
     function bloquearChat() {
         setupActivo = true;
         if (dom.chatContenido) {
@@ -457,6 +492,23 @@
         }
     }
 
+    /**
+     * Carga modelos disponibles.
+     *
+     * Flujo:
+     * 1. GET /api/chat/models?ollamaEndpoint=... → obtiene:
+     *    - gratuitos (modelos Ollama disponibles localmente)
+     *    - dePago (fallback si API keys no están configuradas)
+     *    - proveedoresDePago (lista de proveedores: OpenAI, Anthropic, etc.)
+     *
+     * 2. Para cada proveedor con API key guardada:
+     *    - Obtener modelos remotos del proveedor
+     *    - Cachear en localStorage con TTL
+     *
+     * 3. Si no hay API key, mostrar placeholder "introduce API key"
+     *
+     * 4. Renderizar dropdown y restaurar modelo seleccionado de antes
+     */
     async function cargarModelos() {
         let fallbackPago = [];
         try {
@@ -1047,6 +1099,18 @@
         }
     }
 
+    /**
+     * Envía mensaje al backend.
+     * Flujo:
+     * 1. Validar modelo seleccionado y API key (si es necesario)
+     * 2. Asegurar sesión activa (crear si no existe)
+     * 3. POST /api/chat/sessions/{sessionId}/messages con contenido y configSnapshot
+     * 4. Mostrar "Pensando..." mientras se espera
+     * 5. Renderizar respuesta con markdown formateado
+     * 6. Actualizar indicador de contexto y historial de sesiones
+     *
+     * En MODO AUTO: backend elige modelo automáticamente y recorta historial si excede ventana
+     */
     window.enviarMensaje = async function () {
         if (enviando || setupActivo) return;
 

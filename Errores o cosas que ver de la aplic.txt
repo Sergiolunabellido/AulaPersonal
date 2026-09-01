@@ -1,0 +1,7 @@
+Errores o cosas que ver de la aplicación - Sesión: opencode -s ses_fb75450daffeHP3uUQYFD66LtL
+opencode -s ses_fa773e0b3ffe74skcZZ8Nmw6U4
+
+Error en la terminal de VSCode al arrancar la aplicación:
+(node:10376) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+

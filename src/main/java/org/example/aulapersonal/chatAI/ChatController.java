@@ -9,6 +9,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Controlador REST para funcionalidades de chat/IA.
+ *
+ * Exposición de endpoints usados por el frontend (chatAI/functionChat.js):
+ * - Estado de Ollama y listados de modelos (/status, /models)
+ * - Gestión de sesiones y mensajes (/sessions, /sessions/{id}/messages)
+ * - Validación de API keys y pull de modelos Ollama
+ */
 @RestController
 @RequestMapping("/api/chat")
 public class ChatController {
@@ -19,11 +27,21 @@ public class ChatController {
         this.chatService = chatService;
     }
 
+    /**
+     * GET /api/chat/status
+     * Devuelve información sobre el estado de Ollama (online, modelos instalados)
+     * y catálogo de proveedores. Consumido por la UI para mostrar el estado.
+     */
     @GetMapping("/status")
     public Map<String, Object> obtenerEstado() {
         return chatService.obtenerEstado();
     }
 
+    /**
+     * GET /api/chat/models
+     * Lista modelos locales (Ollama) y de pago según catálogo. Parámetro opcional
+     * 'ollamaEndpoint' permite consultar un endpoint Ollama distinto.
+     */
     @GetMapping("/models")
     public Map<String, Object> listarModelos(
             @RequestParam(required = false) String ollamaEndpoint) {

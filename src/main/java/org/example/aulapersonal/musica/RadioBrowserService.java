@@ -23,6 +23,11 @@ public class RadioBrowserService {
     }
 
     @SuppressWarnings("unchecked")
+    /**
+     * Busca emisoras por nombre usando la API pública de Radio Browser.
+     * Devuelve una lista de mapas con los campos retornados por la API.
+     * Usado por {@link MusicaController#buscar(String)}.
+     */
     public List<Map<String, Object>> buscar(String query) {
         try {
             var respuesta = client.get()
@@ -47,6 +52,10 @@ public class RadioBrowserService {
     }
 
     @SuppressWarnings("unchecked")
+    /**
+     * Busca emisoras por tag (p.ej. 'music'). Usado por el endpoint
+     * {@link MusicaController#radios()} para listar emisoras por tag.
+     */
     public List<Map<String, Object>> buscarPorTag(String tag) {
         try {
             var respuesta = client.get()

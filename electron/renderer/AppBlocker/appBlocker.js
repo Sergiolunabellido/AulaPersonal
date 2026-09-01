@@ -1,8 +1,25 @@
+/**
+ * AppBlocker - Gestor de bloqueo de aplicaciones
+ *
+ * Permite al usuario:
+ * - Agregar aplicaciones a una lista de bloqueo
+ * - Seleccionar apps para bloquear durante sesiones de Pomodoro
+ * - Iniciar/detener bloqueos que impiden la ejecución de procesos en el SO
+ *
+ * Interacción:
+ * - Llamadas IPC: window.electronAPI.bloquearApps(), desbloquearTodo(), obtenerIcono()
+ * - Almacenamiento: localStorage para apps guardadas y estado de bloqueo en sessionStorage
+ * - Endpoint backend: no usa API directa, solo controla procesos via IPC
+ */
 (function() {
-    let aplicaciones = [];
-    let bloqueadas = [];
-    let finBloqueo = null;
-    let idTemporizador = null;
+    // Estado del módulo
+    let aplicaciones = [];        // Lista de apps guardadas
+    let bloqueadas = [];          // Apps actualmente bloqueadas
+    let finBloqueo = null;        // Timestamp de fin del bloqueo
+    let idTemporizador = null;    // ID del interval que actualiza el timer visual
+
+    // ── Gestión de apps seleccionadas ──
+    // Persisten en localStorage para que el Pomodoro sepa qué apps bloquear
 
     function obtenerSeleccionadas() {
         return JSON.parse(localStorage.getItem('pomodoro-apps-seleccionadas') || '[]');
@@ -12,6 +29,7 @@
         localStorage.setItem('pomodoro-apps-seleccionadas', JSON.stringify(seleccionadas));
     }
 
+    // Sincroniza checkboxes → localStorage cada vez que cambian
     function sincronizarSeleccionadas() {
         const seleccionadas = [];
         document.querySelectorAll('#lista-apps input[type="checkbox"]').forEach(checkbox => {
@@ -35,6 +53,9 @@
         });
     }
 
+    // ── Restauración de estado de bloqueo ──
+    // Si había un bloqueo en marcha, lo restaura desde sessionStorage
+
     function guardarEstadoBloqueo() {
         sessionStorage.setItem('appblocker-bloqueo', JSON.stringify({
             bloqueadas,
@@ -43,6 +64,7 @@
         window.dispatchEvent(new CustomEvent('app-bloqueo-cambio'));
     }
 
+    // Sincroniza el estado de bloqueo cuando se navega entre páginas SPA
     function aplicarEstadoBloqueoDesdeStorage() {
         const habiaBloqueo = restaurarEstadoBloqueo();
         if (!habiaBloqueo) {
@@ -241,6 +263,12 @@
         restaurarSeleccionadas();
     }
 
+    /**
+     * Inicia bloqueo de apps seleccionadas.
+     * 1. Valida que al menos una app esté seleccionada
+     * 2. Llama window.electronAPI.bloquearApps(procesos, minutos) para matar procesos en el SO
+     * 3. Guarda estado en sessionStorage para que persista entre navegaciones SPA
+     */
     async function iniciarBloqueo() {
         if (idTemporizador) {
             clearTimeout(idTemporizador);
@@ -261,6 +289,7 @@
         const minutos = parseInt(document.getElementById('select-tiempo').value);
         bloqueadas = seleccionadas.map(a => a.nombre);
 
+        // Llamar IPC para bloquear procesos en Windows/Mac/Linux
         await window.electronAPI.bloquearApps(seleccionadas.map(a => a.proceso.replace(/\.exe$/i, '')), minutos);
 
         finBloqueo = Date.now() + minutos * 60 * 1000;

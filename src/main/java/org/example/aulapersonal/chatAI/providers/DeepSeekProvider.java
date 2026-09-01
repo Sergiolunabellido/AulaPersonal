@@ -6,6 +6,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/**
+ * Adaptador para DeepSeek; utiliza la implementación OpenAI-compatible.
+ */
 @Component
 public class DeepSeekProvider extends OpenAiCompatibleProvider {
 

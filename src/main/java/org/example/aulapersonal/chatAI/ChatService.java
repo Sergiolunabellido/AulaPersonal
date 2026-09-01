@@ -23,6 +23,18 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
+/**
+ * Servicio central de la capa de negocio para Chat/IA.
+ *
+ * Responsabilidades principales:
+ * - Gestión de conversaciones y mensajes persistidos (JPA repositories).
+ * - Orquestación de llamadas a proveedores AI a través de {@link ProviderRegistry}.
+ * - Manejo de lógica de títulos automáticos, renombrado y limpieza de conversaciones vacías.
+ *
+ * Conexiones:
+ * - Consumido por {@link org.example.aulapersonal.chatAI.ChatController} que expone
+ *   los endpoints REST utilizados por el frontend (electron/renderer/chatAI).
+ */
 public class ChatService {
 
     private final MensajeRepository mensajeRepository;
@@ -48,11 +60,22 @@ public class ChatService {
         this.contextManager = contextManager;
     }
 
+    /**
+     * Devuelve la lista de conversaciones (más recientes primero).
+     * Antes de listar, elimina conversaciones sin mensajes.
+     * Llamado por el endpoint GET /api/chat/sessions.
+     */
     public List<Conversacion> listarConversaciones() {
         limpiarConversacionesVacias();
         return conversacionRepository.findAllByOrderByActualizadoEnDesc();
     }
 
+    /**
+     * Renombra conversaciones que tienen títulos provisionales (p.ej. "Nueva convers...")
+     * usando la historia de mensajes para generar un título descriptivo.
+     * Retorna el número de conversaciones renombradas.
+     * Endpoint POST /api/chat/sessions/renombrar-pendientes lo invoca desde la UI.
+     */
     public int renombrarConversacionesPendientes() {
         List<Conversacion> conversaciones = conversacionRepository.findAllByOrderByActualizadoEnDesc();
         int renombradas = 0;
@@ -102,6 +125,10 @@ public class ChatService {
         return conversacionRepository.save(conversacion);
     }
 
+    /**
+     * Crea una nueva conversacion persistida con título y snapshot de configuración.
+     * Usado por POST /api/chat/sessions (frontend crea sesiones nuevas antes de enviar mensajes).
+     */
     public Conversacion crearConversacion(String titulo, String configSnapshot) {
         Conversacion conversacion = new Conversacion();
         conversacion.setTitulo(titulo);
@@ -109,6 +136,10 @@ public class ChatService {
         return conversacionRepository.save(conversacion);
     }
 
+    /**
+     * Elimina una conversación y sus mensajes asociados.
+     * Usado por DELETE /api/chat/sessions/{id}.
+     */
     public boolean eliminarConversacion(Long id) {
         if (conversacionRepository.existsById(id)) {
             mensajeRepository.findByConversacionIDOrderByCreadoEnAsc(id)
@@ -119,10 +150,20 @@ public class ChatService {
         return false;
     }
 
+    /**
+     * Recupera los mensajes de una conversación ordenados ascendentemente.
+     * Usado por GET /api/chat/sessions/{id}/messages y por otros flujos internos.
+     */
     public List<Mensaje> obtenerMensajes(Long conversacionId) {
         return mensajeRepository.findByConversacionIDOrderByCreadoEnAsc(conversacionId);
     }
 
+    /**
+     * Guarda un mensaje en la conversación indicada y actualiza la marca de
+     * actualización de la conversación. Retorna la entidad Mensaje persistida.
+     * Llamado internamente cuando se envían mensajes desde la UI o cuando
+     * se recibe la respuesta de la IA.
+     */
     public Mensaje guardarMensaje(Long conversacionId, String rol, String contenido) {
         Mensaje mensaje = new Mensaje();
         mensaje.setConversacionID(conversacionId);
@@ -138,6 +179,10 @@ public class ChatService {
         return mensaje;
     }
 
+    /**
+     * Devuelve estado agregado: disponibilidad de Ollama, lista de proveedores
+     * y modelos instalados. Consumido por GET /api/chat/status.
+     */
     public Map<String, Object> obtenerEstado() {
         List<String> modelosInstalados = listarNombresModelosOllama();
         Map<String, Object> ollama = new LinkedHashMap<>();
@@ -151,6 +196,10 @@ public class ChatService {
         return estado;
     }
 
+    /**
+     * Lista modelos locales (Ollama) y modelos de pago desde el catálogo.
+     * Parámetro opcional para forzar un endpoint Ollama alternativo.
+     */
     public Map<String, Object> listarModelos(String ollamaEndpoint) {
         String endpoint = (ollamaEndpoint != null && !ollamaEndpoint.isBlank()) ? ollamaEndpoint : ollamaBaseUrl;
         List<Map<String, Object>> gratuitos = obtenerModelosOllama(endpoint);
@@ -161,6 +210,11 @@ public class ChatService {
         return result;
     }
 
+    /**
+     * Intenta listar modelos remotos desde un proveedor de pago usando la API key
+     * y endpoint proporcionados. Devuelve estructura con 'ok', 'modelos' y 'fuente'.
+     * Usado por POST /api/chat/models/remote para que la UI muestre modelos remotos.
+     */
     public Map<String, Object> listarModelosRemotos(String provider, String apiKey, String endpoint) {
         Map<String, Object> result = new LinkedHashMap<>();
         String providerId = provider == null ? "" : provider.trim().toLowerCase();
@@ -217,6 +271,10 @@ public class ChatService {
         return result;
     }
 
+    /**
+     * Realiza una petición de pull a Ollama para descargar un modelo específico.
+     * Llamado desde POST /api/chat/ollama/pull.
+     */
     public Map<String, Object> pullModeloOllama(String model) throws Exception {
         String url = ollamaBaseUrl.replaceAll("/+$", "") + "/api/pull";
         String body = mapper.createObjectNode().put("name", model).put("stream", false).toString();
@@ -237,6 +295,11 @@ public class ChatService {
         return result;
     }
 
+    /**
+     * Valida una API key intentando completar una petición mínima al proveedor.
+     * Devuelve map con 'valid', 'message' y lista de modelos remotos/fallback.
+     * Consumido por POST /api/chat/keys/validate.
+     */
     public Map<String, Object> validarApiKey(String provider, String apiKey, String model, String endpoint) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("provider", provider);
@@ -278,6 +341,12 @@ public class ChatService {
         return result;
     }
 
+    /**
+     * Envia el mensaje del usuario a la IA, guarda el mensaje usuario y la
+     * respuesta asistente en la BD, genera título si procede, y devuelve
+     * un resumen con la respuesta y metadatos (modelo usado, tokens, titulo).
+     * Usado por POST /api/chat/sessions/{id}/messages.
+     */
     public Map<String, Object> enviarMensajeAI(Long conversacionId, String contenido, String configJson) {
         guardarMensaje(conversacionId, "user", contenido);
 
