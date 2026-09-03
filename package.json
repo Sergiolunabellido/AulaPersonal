@@ -4,12 +4,13 @@
   "version": "1.0.0",
   "description": "Aula Personal - Productivity Suite",
   "scripts": {
-    "start": "node scripts/start-dev.js",
+    "start": "npm run build:css && node scripts/start-dev.js",
+    "build:css": "tailwindcss -i ./electron/renderer/input.css -o ./electron/renderer/tailwind.css --minify",
     "build:backend": "node scripts/build-backend.js",
     "build:ollama": "node scripts/build-ollama.js",
-    "build": "npm run build:backend && npm run build:ollama && node scripts/verify-packaging-resources.js && npx electron-builder",
-    "build:linux": "npm run build:backend && node scripts/prepare-linux-resources.js && node scripts/verify-packaging-resources.js --linux && npx electron-builder --linux dir && node scripts/zip-linux-dist.js",
-    "build:win": "npm run build:backend && npm run build:ollama && node scripts/verify-packaging-resources.js && npx electron-builder --win",
+    "build": "npm run build:css && npm run build:backend && npm run build:ollama && node scripts/verify-packaging-resources.js && npx electron-builder",
+    "build:linux": "npm run build:css && npm run build:backend && node scripts/prepare-linux-resources.js && node scripts/verify-packaging-resources.js --linux && npx electron-builder --linux dir && node scripts/zip-linux-dist.js",
+    "build:win": "npm run build:css && npm run build:backend && npm run build:ollama && node scripts/verify-packaging-resources.js && npx electron-builder --win",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -17,10 +18,11 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
     "electron": "^42.4.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "tailwindcss": "^4.3.3"
   },
-  "dependencies": {},
   "build": {
     "appId": "com.aulapersonal.app",
     "productName": "Aula Personal",
@@ -58,9 +60,16 @@
       "installerHeaderIcon": "electron/assets/app-icon.ico"
     },
     "linux": {
-      "target": ["dir"],
+      "target": [
+        "dir"
+      ],
       "category": "Office",
       "icon": "electron/assets/icons"
     }
+  },
+  "dependencies": {
+    "@fontsource/poppins": "^5.3.0",
+    "dompurify": "^3.1.6",
+    "marked": "^12.0.2"
   }
 }

@@ -6,6 +6,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/**
+ * Proveedor "custom" que permite configurar manualmente endpoint/model en
+ * la UI. Hereda de {@link OpenAiCompatibleProvider} para tratar endpoints
+ * compatibles OpenAI.
+ */
 @Component
 public class CustomProvider extends OpenAiCompatibleProvider {
 

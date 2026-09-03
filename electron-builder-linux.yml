@@ -1,5 +1,0 @@
-linux:
-  target:
-    - AppImage
-  category: Office
-  icon: electron/assets/icons

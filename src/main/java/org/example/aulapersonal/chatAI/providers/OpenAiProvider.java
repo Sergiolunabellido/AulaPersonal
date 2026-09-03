@@ -7,6 +7,10 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 @Component
+/**
+ * Adaptador para usar APIs compatibles con el formato OpenAI.
+ * Hereda la lógica común de {@link OpenAiCompatibleProvider}.
+ */
 public class OpenAiProvider extends OpenAiCompatibleProvider {
 
     @Override

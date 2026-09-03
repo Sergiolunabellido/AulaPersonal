@@ -17,6 +17,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+
+/**
+ * Adaptador para Google Gemini (intenta usar API nativa y si falla cae
+ * al endpoint OpenAI-compatible). Implementa listarModelos con fallback.
+ */
 @Component
 public class GoogleGeminiProvider extends OpenAiCompatibleProvider {
 

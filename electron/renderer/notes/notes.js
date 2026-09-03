@@ -1,9 +1,24 @@
+/**
+ * Notes - Gestor de notas persistentes
+ *
+ * Funcionalidad:
+ * - Listar todas las notas (GET /api/notas)
+ * - Crear nueva nota (POST /api/notas)
+ * - Editar nota existente (PUT /api/notas/{id})
+ * - Eliminar nota (DELETE /api/notas/{id})
+ *
+ * La app mantiene un estado local (idNotaActual) pero todas las
+ * operaciones son persistidas en la BD H2 del backend via REST API.
+ *
+ * Atajos de teclado: Ctrl+S (Cmd+S en Mac) para guardar la nota actual.
+ */
 (function () {
   'use strict';
 
   const URL_API = 'http://localhost:8080/api/notas';
-  let idNotaActual = null;
+  let idNotaActual = null;  // ID de la nota siendo editada
 
+  // Referencias al DOM
   const dom = {
     lista: document.getElementById('lista-notas'),
     sinNotas: document.getElementById('sin-notas'),
@@ -16,6 +31,10 @@
     btnEliminar: document.getElementById('btn-eliminar'),
   };
 
+  /**
+   * Realiza una petición HTTP al backend.
+   * Maneja errores comunes y parsea JSON automáticamente.
+   */
   async function peticion(metodo, ruta, cuerpo) {
     const opciones = {
       method: metodo,

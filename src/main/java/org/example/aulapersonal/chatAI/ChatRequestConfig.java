@@ -14,6 +14,10 @@ public class ChatRequestConfig {
     private String tipoTrabajo = "general";
     private boolean modoAuto = false;
 
+    /**
+     * Construye una configuración de petición a partir de un Map (usado para
+     * persistencia ligera / snapshot de configuración en Conversacion.configSnapshot).
+     */
     public static ChatRequestConfig fromMap(Map<String, Object> raw) {
         ChatRequestConfig config = new ChatRequestConfig();
         if (raw == null) return config;
@@ -29,6 +33,9 @@ public class ChatRequestConfig {
         return config;
     }
 
+    /**
+     * Helper factory para crear una config con provider/model/endpoint/apiKey.
+     */
     public static ChatRequestConfig of(String provider, String model, String apiKey, String endpoint) {
         ChatRequestConfig config = new ChatRequestConfig();
         config.provider = provider;
@@ -38,6 +45,10 @@ public class ChatRequestConfig {
         return config;
     }
 
+    /**
+     * Devuelve una configuración ajustada para la generación de títulos.
+     * Marca el campo interno tipoTrabajo como especial para el flujo de titulación.
+     */
     public static ChatRequestConfig forTitleGeneration(ChatRequestConfig base) {
         ChatRequestConfig config = of(
                 base.getProvider(),
@@ -49,10 +60,14 @@ public class ChatRequestConfig {
         return config;
     }
 
+    /** Indica si la config corresponde a una generación de título. */
     public boolean isTitleGeneration() {
         return "__title__".equals(tipoTrabajo);
     }
 
+    /**
+     * Devuelve un Map con los campos que se deben persistir en snapshot (sin apiKey).
+     */
     public Map<String, Object> toPersistedMap() {
         Map<String, Object> map = new HashMap<>();
         map.put("provider", provider);
@@ -87,6 +102,11 @@ public class ChatRequestConfig {
     public boolean isModoAuto() { return modoAuto; }
     public void setModoAuto(boolean modoAuto) { this.modoAuto = modoAuto; }
 
+    /**
+     * Construye el prompt de sistema que se inyectará como primer mensaje en
+     * las solicitudes a los proveedores. Cambia si la config es para generación
+     * de título (prompt más restrictivo).
+     */
     public String buildSystemPrompt() {
         if (isTitleGeneration()) {
             return "Eres un asistente que nombra conversaciones de chat. "

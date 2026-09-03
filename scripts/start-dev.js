@@ -1,3 +1,9 @@
+/**
+ * Script de desarrollo para arrancar la aplicación Electron junto al backend.
+ * - Comprueba si el JAR del backend está desactualizado y ejecuta './gradlew bootJar'
+ *   si es necesario.
+ * - Luego arranca Electron con 'npx electron .'
+ */
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');

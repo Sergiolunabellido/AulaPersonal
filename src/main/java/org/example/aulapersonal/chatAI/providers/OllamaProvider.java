@@ -15,6 +15,11 @@ import java.net.http.HttpResponse;
 import java.util.List;
 
 @Component
+/**
+ * Implementación de AiProvider para Ollama local.
+ * Construye la petición en el formato esperado por Ollama (/api/chat) y devuelve
+ * el contenido textual de la respuesta.
+ */
 public class OllamaProvider implements AiProvider {
 
     private final ObjectMapper mapper = new ObjectMapper();
@@ -24,6 +29,10 @@ public class OllamaProvider implements AiProvider {
         return "ollama";
     }
 
+    /**
+     * Envía la lista de mensajes (incluyendo system prompt) al endpoint /api/chat
+     * del servicio Ollama especificado en la config y devuelve la respuesta.
+     */
     @Override
     public String completarChat(ChatRequestConfig config, List<Mensaje> historial) throws Exception {
         String baseUrl = config.getEndpoint().replaceAll("/+$", "");

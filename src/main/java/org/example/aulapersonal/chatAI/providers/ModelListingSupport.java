@@ -5,6 +5,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Utilidades para normalizar y filtrar información de modelos al listar
+ * (nombres "bonitos", URLs de listados, detección de modelos de chat).
+ * Usado por adaptadores OpenAI-compatible y por la lógica de catálogo.
+ */
 final class ModelListingSupport {
 
     private static final Set<String> EXCLUIDOS = Set.of(

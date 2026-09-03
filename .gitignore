@@ -39,4 +39,18 @@ node_modules/
 dist/
 *.exe
 .DS_Store
-dist/
+
+# Local JDK copies (not part of the app)
+oracleJdk-*/
+
+# H2 lock files (runtime)
+*.lock.db
+
+# Tooling logs
+.opencode/*.log
+
+#Archivos TXT
+.txt
+
+# Tailwind CSS generado (build:css)
+electron/renderer/tailwind.css

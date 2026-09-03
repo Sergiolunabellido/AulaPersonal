@@ -5,6 +5,15 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "mensaje")
+/**
+ * Entidad que representa un mensaje en una conversación.
+ * Campos:
+ * - conversacionID: FK hacia {@link org.example.aulapersonal.chatAI.Conversacion.Conversacion}
+ * - rol: 'user' o 'assistant' (u otros) para interpretar el origen del mensaje
+ * - contenido: texto del mensaje
+ *
+ * Se crea la marca de tiempo automáticamente en {@link #crearMensaje()} (@PrePersist).
+ */
 public class Mensaje {
 
     @Id
@@ -25,9 +34,11 @@ public class Mensaje {
 
     @PrePersist
     public void crearMensaje() {
+        // Marca temporal al persistir por primera vez
         creadoEn = LocalDateTime.now();
     }
 
+    // Getters/setters usados por JPA y servicios
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Long getConversacionID() { return conversacionID; }

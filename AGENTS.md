@@ -25,7 +25,5 @@ Desktop productivity suite built with Electron + Spring Boot (Java 17). Manages 
 - Config stored in localStorage; chat sessions/messages persisted in H2
 
 ## Agent Config Files
-- `docs/superpowers/specs/` — design specs
-- `docs/superpowers/plans/` — implementation plans
 - `electron/renderer/` — frontend pages
 - `src/main/java/org/example/aulapersonal/` — backend packages

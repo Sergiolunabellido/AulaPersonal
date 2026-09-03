@@ -17,6 +17,12 @@ public class ProviderRegistry {
         }
     }
 
+    /**
+     * Resuelve un proveedor AI por su id.
+     * Si el id no existe, devuelve el proveedor 'custom' por defecto.
+     * Usado por {@link org.example.aulapersonal.chatAI.ChatService} para enrutar
+     * las llamadas a completarChat/listarModelos.
+     */
     public AiProvider resolve(String providerId) {
         AiProvider provider = providersById.get(providerId);
         if (provider == null) {

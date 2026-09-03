@@ -1,41 +1,64 @@
+/**
+ * Music Player - Reproductor de radio en vivo
+ *
+ * Funcionalidad:
+ * - Buscar emisoras de radio via backend (RadioBrowser API integrada)
+ * - Reproducir emisoras en streaming de audio HTML5
+ * - Control de volumen y silenciado
+ * - Mostrar información de la estación en curso
+ *
+ * Flujo:
+ * 1. Backend: GET /api/musica/radios → lista de emisoras (datos de RadioBrowser)
+ * 2. Frontend: renderiza grid de emisoras con iconos
+ * 3. Usuario clickea "Reproducir" → window.reproducirEmisora(index)
+ * 4. Se establece audio.src = emisora.url_resolved y se inicia reproducción
+ *
+ * El reproductor persiste en window.__radioPlayer para mantener estado
+ * si el usuario navega a otras páginas (SPA).
+ */
 (function () {
     'use strict';
 
     var API_BASE = 'http://localhost:8080/api/musica';
 
+    /**
+     * Reproductor global persistente.
+     * Se inicializa una sola vez y reutiliza en navegaciones SPA.
+     */
     if (!window.__radioPlayer) {
         window.__radioPlayer = {
-            audio: new Audio(),
-            currentStation: null,
-            isPlaying: false,
-            volume: 0.8,
-            muted: false,
-            ready: false
+            audio: new Audio(),              // Elemento <audio> HTML5
+            currentStation: null,            // Estación actual { name, meta, favicon, url }
+            isPlaying: false,               // Estado de reproducción
+            volume: 0.8,                    // Volumen (0.0 - 1.0)
+            muted: false,                   // Silenciado
+            ready: true                     // Listo para usar
         };
 
         var p = window.__radioPlayer;
         var a = p.audio;
         a.volume = p.volume;
 
+        // Listeners de evento del audio HTML5
         a.addEventListener('error', function () {
             p.isPlaying = false;
             var btn = document.getElementById('btn-play');
-            if (btn) btn.textContent = '\u25B6\uFE0F';
+            if (btn) btn.textContent = '▶️';
         });
         a.addEventListener('ended', function () {
             p.isPlaying = false;
             var btn = document.getElementById('btn-play');
-            if (btn) btn.textContent = '\u25B6\uFE0F';
+            if (btn) btn.textContent = '▶️';
         });
         a.addEventListener('play', function () {
             p.isPlaying = true;
             var btn = document.getElementById('btn-play');
-            if (btn) btn.textContent = '\u23F8\uFE0F';
+            if (btn) btn.textContent = '⏸️';
         });
         a.addEventListener('pause', function () {
             p.isPlaying = false;
             var btn = document.getElementById('btn-play');
-            if (btn) btn.textContent = '\u25B6\uFE0F';
+            if (btn) btn.textContent = '▶️';
         });
         p.ready = true;
     }
@@ -43,9 +66,9 @@
     var player = window.__radioPlayer;
     var audio = player.audio;
 
-    var allStations = [];
-    var searchQuery = '';
-    var searchTimeout = null;
+    var allStations = [];        // Lista de emisoras cargadas del backend
+    var searchQuery = '';        // Término de búsqueda actual
+    var searchTimeout = null;    // Debounce timer para búsqueda
 
     function $(id) { return document.getElementById(id); }
 
@@ -111,7 +134,7 @@
                 + '<div class="flex items-start gap-3 mb-2">'
                 + '<div class="w-9 h-9 rounded-lg bg-gray-100 shrink-0 flex items-center justify-center overflow-hidden">'
                 + (favicon
-                    ? '<img src="' + escapar(favicon) + '" alt="" class="w-full h-full object-cover" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'\uD83D\uDCFB\'">'
+                    ? '<img src="' + escapar(favicon) + '" alt="" class="w-full h-full object-cover" loading="lazy">'
                     : '<span class="text-sm">\uD83D\uDCFB</span>')
                 + '</div>'
                 + '<div class="min-w-0 flex-1">'
@@ -123,12 +146,27 @@
                 + '</div>'
                 + '</div>'
                 + '<div class="flex items-center gap-2 mt-auto">'
-                + (bitrate ? '<span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">' + bitrate + ' kbps</span>' : '')
+                + (bitrate ? '<span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">' + escapar(bitrate) + ' kbps</span>' : '')
                 + (codec ? '<span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium uppercase">' + escapar(codec) + '</span>' : '')
-                + '<button onclick="window.reproducirEmisora(' + i + ')" class="ml-auto px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 transition-colors">\u25B6 Reproducir</button>'
+                + '<button type="button" data-index="' + i + '" class="btn-reproducir ml-auto px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 transition-colors">\u25B6 Reproducir</button>'
                 + '</div>'
                 + '</div>';
         }).join('');
+
+        // Listeners post-insert (los nodos son frescos en cada render):
+        // fallback del favicon si la imagen no carga
+        grid.querySelectorAll('img').forEach(function (img) {
+            img.addEventListener('error', function () {
+                img.style.display = 'none';
+                if (img.parentElement) img.parentElement.textContent = '\uD83D\uDCFB';
+            });
+        });
+        // reproducción por índice
+        grid.querySelectorAll('.btn-reproducir').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                window.reproducirEmisora(Number(btn.getAttribute('data-index')));
+            });
+        });
 
         $('station-grid').classList.remove('hidden');
     }
@@ -167,7 +205,14 @@
         $('player-meta').textContent = station.meta || 'Transmisi\u00f3n en vivo';
         var playerIcon = $('player-favicon');
         if (station.favicon) {
-            playerIcon.innerHTML = '<img src="' + escapar(station.favicon) + '" alt="" class="w-full h-full object-cover" onerror="this.style.display=\'none\';this.parentElement.textContent=\'\uD83D\uDCFB\'">';
+            playerIcon.innerHTML = '<img src="' + escapar(station.favicon) + '" alt="" class="w-full h-full object-cover">';
+            var img = playerIcon.querySelector('img');
+            if (img) {
+                img.addEventListener('error', function () {
+                    img.style.display = 'none';
+                    if (img.parentElement) img.parentElement.textContent = '\uD83D\uDCFB';
+                });
+            }
         } else {
             playerIcon.innerHTML = '<span class="text-lg">\uD83D\uDCFB</span>';
         }

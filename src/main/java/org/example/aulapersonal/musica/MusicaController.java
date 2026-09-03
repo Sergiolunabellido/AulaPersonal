@@ -15,11 +15,19 @@ public class MusicaController {
         this.radioBrowser = radioBrowser;
     }
 
+    /**
+     * GET /api/musica/radios
+     * Lista emisoras por tag 'music' (uso por la UI de música).
+     */
     @GetMapping("/radios")
     public List<Map<String, Object>> radios() {
         return radioBrowser.buscarPorTag("music");
     }
 
+    /**
+     * GET /api/musica/radios/buscar?query=...
+     * Busca emisoras por nombre (forward a RadioBrowserService#buscar).
+     */
     @GetMapping("/radios/buscar")
     public List<Map<String, Object>> buscar(@RequestParam String query) {
         return radioBrowser.buscar(query);

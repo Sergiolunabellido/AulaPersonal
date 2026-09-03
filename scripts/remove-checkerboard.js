@@ -149,9 +149,7 @@ function main() {
   console.log(`Cleared ${cleared} px -> ${outMain}`);
 
   const rendererIcon = path.join(root, 'electron', 'renderer', 'assets', 'imagenes', 'aula-personal-icon.png');
-  const rendererLogo = path.join(root, 'electron', 'renderer', 'assets', 'imagenes', 'aula-personal-logo.png');
   fs.copyFileSync(outMain, rendererIcon);
-  fs.copyFileSync(outMain, rendererLogo);
 
   const iconsDir = path.join(root, 'electron', 'assets', 'icons');
   fs.mkdirSync(iconsDir, { recursive: true });
@@ -160,10 +158,6 @@ function main() {
     const dest = path.join(iconsDir, `${size}x${size}.png`);
     fs.writeFileSync(dest, PNG.sync.write(resized));
   }
-  fs.writeFileSync(
-    path.join(root, 'electron', 'assets', 'app-icon-512.png'),
-    PNG.sync.write(resizeNearest(input, 512))
-  );
 
   const c0 = input.data[3];
   console.log(`Corner alpha after clean: ${c0}`);

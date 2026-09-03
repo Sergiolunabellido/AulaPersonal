@@ -448,7 +448,56 @@ function sidebarFocusReiniciar() {
 
 window.actualizarSidebarFocusTimer = actualizarSidebarFocusTimer;
 
+/**
+ * Vincula los controles del shell (navegación, widgets de focus y modales)
+ * sin atributos onclick inline (requisito CSP: script-src 'self').
+ */
+function vincularEventosShell() {
+    const el = (id) => document.getElementById(id);
+
+    // Navegación principal
+    el('titulo')?.addEventListener('click', (e) => cargarPagina(e, 'bienvenida'));
+    el('appblocker')?.addEventListener('click', (e) => cargarPagina(e, 'bloqueoApps'));
+    el('pomodoro')?.addEventListener('click', (e) => cargarPagina(e, 'pomodoro'));
+    el('chat')?.addEventListener('click', (e) => cargarPagina(e, 'chatIA'));
+    el('musica')?.addEventListener('click', (e) => cargarPagina(e, 'musica'));
+    el('notes')?.addEventListener('click', (e) => cargarPagina(e, 'notas'));
+
+    // Widget focus compacto en móvil
+    el('btn-focus-mobile')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        abrirModalFocusSession(e);
+    });
+    el('mobile-focus-pause')?.addEventListener('click', sidebarFocusPausa);
+    el('mobile-focus-stop')?.addEventListener('click', sidebarFocusDetener);
+    el('mobile-focus-reiniciar')?.addEventListener('click', sidebarFocusReiniciar);
+
+    // Widget focus en el sidebar (md+)
+    el('btn-iniciar-focus')?.addEventListener('click', (e) => abrirModalFocusSession(e));
+    el('sidebar-focus-pause')?.addEventListener('click', sidebarFocusPausa);
+    el('sidebar-focus-stop')?.addEventListener('click', sidebarFocusDetener);
+    el('sidebar-focus-reiniciar')?.addEventListener('click', sidebarFocusReiniciar);
+
+    // Help (función aún no disponible)
+    el('help-sidebar-link')?.addEventListener('click', () => {
+        alertas('warning', 'In this moment this function is not available');
+    });
+
+    // Cerrar modales al hacer clic fuera del panel
+    el('modal-overlay')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) cerrarModalOverlay();
+    });
+    el('modal-focus-session')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) cerrarModalFocusSession();
+    });
+
+    // Modal Focus Session: botones
+    el('btn-focus-cancelar')?.addEventListener('click', cerrarModalFocusSession);
+    el('btn-focus-confirmar')?.addEventListener('click', confirmarFocusSession);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    vincularEventosShell();
     actualizarSidebarFocusTimer();
     asegurarTickSidebarFocus();
 });

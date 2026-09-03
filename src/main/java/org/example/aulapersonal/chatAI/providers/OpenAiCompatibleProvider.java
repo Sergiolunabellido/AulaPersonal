@@ -20,6 +20,10 @@ abstract class OpenAiCompatibleProvider implements AiProvider {
 
     protected final ObjectMapper mapper = new ObjectMapper();
 
+    /**
+     * Normaliza/resolve la URL base del endpoint OpenAI-compatible para construir
+     * la ruta de chat completions.
+     */
     protected String resolveUrl(String endpoint) {
         String baseUrl = endpoint.replaceAll("/+$", "");
         if (baseUrl.endsWith("/v1/chat/completions")) {
@@ -39,6 +43,10 @@ abstract class OpenAiCompatibleProvider implements AiProvider {
         return listarModelosOpenAi(config);
     }
 
+    /**
+     * Intenta listar modelos desde un endpoint compatible OpenAI usando la API key.
+     * Implementaciones concretas (OpenAI, Google fallback) usan este helper.
+     */
     protected List<Map<String, Object>> listarModelosOpenAi(ChatRequestConfig config) throws Exception {
         if (config.getApiKey() == null || config.getApiKey().isBlank()) {
             return List.of();
@@ -96,6 +104,10 @@ abstract class OpenAiCompatibleProvider implements AiProvider {
         return node == null || node.isNull() ? null : node.asText();
     }
 
+    /**
+     * Método común para completar chat con endpoints OpenAI-compatible.
+     * Lanza mensaje de error legible si la API key falta o la respuesta HTTP no es 200.
+     */
     protected String completarOpenAi(ChatRequestConfig config, List<Mensaje> historial) throws Exception {
         if (config.getApiKey() == null || config.getApiKey().isBlank()) {
             return "Error: falta la API key para " + getProviderId();
