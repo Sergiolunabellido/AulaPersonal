@@ -134,7 +134,7 @@
                 + '<div class="flex items-start gap-3 mb-2">'
                 + '<div class="w-9 h-9 rounded-lg bg-gray-100 shrink-0 flex items-center justify-center overflow-hidden">'
                 + (favicon
-                    ? '<img src="' + escapar(favicon) + '" alt="" class="w-full h-full object-cover" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'\uD83D\uDCFB\'">'
+                    ? '<img src="' + escapar(favicon) + '" alt="" class="w-full h-full object-cover" loading="lazy">'
                     : '<span class="text-sm">\uD83D\uDCFB</span>')
                 + '</div>'
                 + '<div class="min-w-0 flex-1">'
@@ -146,12 +146,27 @@
                 + '</div>'
                 + '</div>'
                 + '<div class="flex items-center gap-2 mt-auto">'
-                + (bitrate ? '<span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">' + bitrate + ' kbps</span>' : '')
+                + (bitrate ? '<span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">' + escapar(bitrate) + ' kbps</span>' : '')
                 + (codec ? '<span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium uppercase">' + escapar(codec) + '</span>' : '')
-                + '<button onclick="window.reproducirEmisora(' + i + ')" class="ml-auto px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 transition-colors">\u25B6 Reproducir</button>'
+                + '<button type="button" data-index="' + i + '" class="btn-reproducir ml-auto px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 transition-colors">\u25B6 Reproducir</button>'
                 + '</div>'
                 + '</div>';
         }).join('');
+
+        // Listeners post-insert (los nodos son frescos en cada render):
+        // fallback del favicon si la imagen no carga
+        grid.querySelectorAll('img').forEach(function (img) {
+            img.addEventListener('error', function () {
+                img.style.display = 'none';
+                if (img.parentElement) img.parentElement.textContent = '\uD83D\uDCFB';
+            });
+        });
+        // reproducción por índice
+        grid.querySelectorAll('.btn-reproducir').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                window.reproducirEmisora(Number(btn.getAttribute('data-index')));
+            });
+        });
 
         $('station-grid').classList.remove('hidden');
     }
@@ -190,7 +205,14 @@
         $('player-meta').textContent = station.meta || 'Transmisi\u00f3n en vivo';
         var playerIcon = $('player-favicon');
         if (station.favicon) {
-            playerIcon.innerHTML = '<img src="' + escapar(station.favicon) + '" alt="" class="w-full h-full object-cover" onerror="this.style.display=\'none\';this.parentElement.textContent=\'\uD83D\uDCFB\'">';
+            playerIcon.innerHTML = '<img src="' + escapar(station.favicon) + '" alt="" class="w-full h-full object-cover">';
+            var img = playerIcon.querySelector('img');
+            if (img) {
+                img.addEventListener('error', function () {
+                    img.style.display = 'none';
+                    if (img.parentElement) img.parentElement.textContent = '\uD83D\uDCFB';
+                });
+            }
         } else {
             playerIcon.innerHTML = '<span class="text-lg">\uD83D\uDCFB</span>';
         }

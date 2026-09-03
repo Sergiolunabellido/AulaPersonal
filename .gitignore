@@ -51,3 +51,6 @@ oracleJdk-*/
 
 #Archivos TXT
 .txt
+
+# Tailwind CSS generado (build:css)
+electron/renderer/tailwind.css

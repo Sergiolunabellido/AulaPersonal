@@ -1264,6 +1264,47 @@
 
     // ── Inicialización ──
 
+    /**
+     * Vincula los controles del chat sin atributos inline
+     * (requisito CSP: script-src 'self').
+     */
+    function vincularEventosChat() {
+        const btn = (id) => document.getElementById(id);
+
+        // Nueva conversación (3 botones)
+        btn('btn-nueva-mobile')?.addEventListener('click', () => window.nuevaSesion());
+        btn('btn-nueva-sidebar')?.addEventListener('click', () => window.nuevaSesion());
+        btn('btn-nueva-header')?.addEventListener('click', () => window.nuevaSesion());
+
+        // Panel API key
+        btn('btn-ocultar-api-key')?.addEventListener('click', () => window.togglePanelApiKey());
+        btn('btn-guardar-api-key')?.addEventListener('click', () => window.guardarApiKey());
+        btn('btn-validar-api-key')?.addEventListener('click', () => window.validarApiKey());
+        btn('btn-api-key')?.addEventListener('click', () => window.togglePanelApiKey());
+
+        // Selector y recarga de modelos
+        btn('btn-selector-modelo')?.addEventListener('click', () => window.toggleSelectorModelo());
+        btn('btn-recargar-modelos')?.addEventListener('click', () => window.recargarModelos());
+
+        const buscarModelo = document.getElementById('buscar-modelo');
+        buscarModelo?.addEventListener('input', () => window.filtrarModelos(buscarModelo.value));
+
+        // Composer: enviar y auto-resize del textarea
+        btn('btn-enviar')?.addEventListener('click', () => window.enviarMensaje());
+        if (dom.input) {
+            dom.input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    window.enviarMensaje();
+                }
+            });
+            dom.input.addEventListener('input', () => {
+                dom.input.style.height = 'auto';
+                dom.input.style.height = Math.min(dom.input.scrollHeight, 160) + 'px';
+            });
+        }
+    }
+
     function configurarEventos() {
         document.addEventListener('click', (e) => {
             const selector = document.getElementById('btn-selector-modelo');
@@ -1279,6 +1320,7 @@
         if (!document.getElementById('chat-app')) return;
 
         obtenerDom();
+        vincularEventosChat();
         await cargarConfig();
         configurarEventos();
         configurarSetupOllama();

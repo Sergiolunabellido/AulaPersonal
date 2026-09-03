@@ -78,6 +78,11 @@ function obtenerRutaJar() {
  * Usado por el mecanismo de bloqueo de apps para impedir ejecución.
  */
 function matarProceso(nombre) {
+  const whiteList = /^[a-zA-Z0-9_\s-]+$/
+  if(!whiteList.test(nombre)) {
+    return "Error: El nombre de proceso pasado no esta permitido."
+  }
+
   if (esWindows) {
     execFile('taskkill', ['/F', '/IM', `${nombre}.exe`, '/T'], { windowsHide: true }, () => {});
   } else {
@@ -327,16 +332,19 @@ ipcMain.handle('bloquear-apps', (_event, nombresApps, minutos) => {
   const duracionMs = minutos * 60 * 1000;
   const inicio = Date.now();
 
-  intervaloBloqueo = setInterval(() => {
-    if (Date.now() - inicio >= duracionMs) {
-      clearInterval(intervaloBloqueo);
-      intervaloBloqueo = null;
-      return;
-    }
-    for (const nombre of nombresApps) {
-      matarProceso(nombre);
-    }
-  }, 2000);
+  if(Array.isArray(nombresApps) && nombresApps.every(el => typeof el === 'string') && Number.isFinite(minutos) && minutos > 0 && minutos < 999) {
+    intervaloBloqueo = setInterval(() => {
+      if (Date.now() - inicio >= duracionMs) {
+        clearInterval(intervaloBloqueo);
+        intervaloBloqueo = null;
+        return;
+      }
+      for (const nombre of nombresApps) {
+        matarProceso(nombre);
+      }
+    }, 2000);
+  }else return "nombresApps a de ser un array de Strings y minutos tiene que ser numero"
+
 
   return true;
 });

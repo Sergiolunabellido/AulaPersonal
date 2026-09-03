@@ -35,12 +35,12 @@
       <div id="player-name" class="text-sm font-medium truncate">Sin reproducci&oacute;n</div>
       <div id="player-meta" class="text-xs text-gray-400 truncate">Selecciona una emisora</div>
     </div>
-    <button id="btn-play" class="w-9 h-9 lg:w-10 lg:h-10 bg-purple-600 rounded-full flex items-center justify-center hover:bg-purple-500 transition-colors text-base lg:text-lg shrink-0 disabled:opacity-40" onclick="window.togglePlay()" disabled>&#x25B6;&#xFE0F;</button>
+    <button id="btn-play" class="w-9 h-9 lg:w-10 lg:h-10 bg-purple-600 rounded-full flex items-center justify-center hover:bg-purple-500 transition-colors text-base lg:text-lg shrink-0 disabled:opacity-40" disabled>&#x25B6;&#xFE0F;</button>
     <div class="hidden lg:flex items-center gap-2">
-      <button id="btn-mute" class="text-gray-400 hover:text-white transition-colors text-sm" onclick="window.toggleMute()">&#x1F50A;</button>
-      <input id="volume-slider" type="range" min="0" max="1" step="0.05" value="0.8" class="w-20 h-1 accent-purple-500 cursor-pointer" oninput="window.ajustarVolumen(this.value)">
+      <button id="btn-mute" class="text-gray-400 hover:text-white transition-colors text-sm">&#x1F50A;</button>
+      <input id="volume-slider" type="range" min="0" max="1" step="0.05" value="0.8" class="w-20 h-1 accent-purple-500 cursor-pointer">
     </div>
-    <button id="btn-mute-mobile" class="lg:hidden text-gray-400 hover:text-white transition-colors text-sm" onclick="window.toggleMute()">&#x1F50A;</button>
+    <button id="btn-mute-mobile" class="lg:hidden text-gray-400 hover:text-white transition-colors text-sm">&#x1F50A;</button>
   </div>
 </div>
 
